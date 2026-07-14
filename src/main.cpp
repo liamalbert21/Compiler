@@ -1,10 +1,12 @@
 #include "Lexer.hpp"
 
-#include <fstream>
-
 int main() {
-    Lexer lexer{std::ifstream{PROJECT_ROOT_DIR "Code.txt"}};
+    // Maybe use a singleton class for settings? This could also work for an error handler
+    constexpr int right_just{30};
+
+    Lexer lexer{ std::ifstream{ PROJECT_ROOT_DIR "Code.txt" } };
     lexer.tokenize();
-    lexer.printTokens();
+    lexer.printTokens(right_just);
+
     return 0;
 }

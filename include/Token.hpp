@@ -7,10 +7,11 @@ using Literal = std::variant<char, int, double>;
 using Lexeme  = std::variant<char, std::string>;
 
 struct Token {
+    // This should be automatically generated
     enum class Type {
         INT, DOUBLE,
         LEFT_PAREN, RIGHT_PAREN, LEFT_BRACK, RIGHT_BRACK,
-        PLUS, MINUS, STAR, SLASH,
+        PLUS, MINUS, STAR, SLASH, FACTORIAL,
         INVALID,
 
         // Should be invisible to the user
@@ -18,7 +19,7 @@ struct Token {
     };
 
     static std::string toString(Type type);
-    operator bool() const;
+    explicit operator bool() const;
 
     Type type{};
     Literal literal{};

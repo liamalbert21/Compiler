@@ -2,13 +2,14 @@
 
 #include "Token.hpp"
 
+#include <fstream>
 #include <vector>
 
 class Lexer {
 public:
     Lexer(std::ifstream&& input);
     void tokenize();
-    void printTokens() const;
+    void printTokens(int right_just) const;
 
 private:
     struct NumberData {
@@ -17,16 +18,16 @@ private:
     };
 
     Token getToken();
-    Token::Type getPartialTokenType(char ch) const;
-    NumberData getNumberData();
+    Token generateNumericToken(Token::Type init_guess);
+    Token::Type guessTokenType(char ch) const;
+    NumberData getNumericTokenData(Token::Type final_guess);
 
     void advance();
-    void backtrack();
     char extract();
     void extract(char& ch);
     char peek() const;
     void peek(char& ch) const;
-    void readyNextToken();
+    void prepareNextToken();
     bool isEOF() const;
 
     std::vector<Token> m_tokens{};

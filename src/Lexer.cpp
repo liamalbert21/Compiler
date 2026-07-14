@@ -3,7 +3,6 @@
 #include <iostream>
 #include <iomanip>
 #include <cassert>
-#include <fstream>
 #include <sstream>
 
 Lexer::Lexer(std::ifstream&& input) {
@@ -12,7 +11,6 @@ Lexer::Lexer(std::ifstream&& input) {
     m_content = oss.str();
 
     assert(m_content.length() > 0);
-
     m_start = m_content.begin();
     m_current = m_content.begin();
 }
@@ -20,10 +18,8 @@ Lexer::Lexer(std::ifstream&& input) {
 void Lexer::tokenize() {
     m_tokens.clear();
 
+    // "token" will be deemed false if its type is invalid
     while (Token&& token{getToken()}) {
-        if (token.type == Token::Type::__WHITESPACE) {
-            continue;
-        }
         m_tokens.push_back(token);
 
         if (isEOF()) {
@@ -31,24 +27,28 @@ void Lexer::tokenize() {
         }
     }
 
-    throw std::runtime_error("ERROR: Invalid character!");
+    throw std::runtime_error("ERROR: Invalid syntax!");
 }
 
-void Lexer::printTokens() const {
+void Lexer::printTokens(int right_just) const {
     if (m_tokens.empty()) {
         std::cerr << "ERROR: Token data has yet to be acquired!\n";
         return;
     }
 
     for (const Token& token : m_tokens) {
-        std::cout << std::setw(30);
+        std::cout << std::setw(right_just);
 
-        if (token.type == Token::Type::INT) {
-            std::cout << std::get<int>(token.literal);
-        } else if (token.type == Token::Type::DOUBLE) {
-            std::cout << std::get<double>(token.literal);
-        } else {
-            std::cout << std::get<char>(token.literal);
+        // Cannot send std::variant directly to cout buffer
+        switch (token.type) {
+            case Token::Type::INT:
+                std::cout << std::get<int>(token.literal);
+                break;
+            case Token::Type::DOUBLE:
+                std::cout << std::get<double>(token.literal);
+                break;
+            default:
+                std::cout << std::get<char>(token.literal);
         }
 
         std::cout << '\r' << Token::toString(token.type) << '\n';
@@ -57,42 +57,52 @@ void Lexer::printTokens() const {
 
 Token Lexer::getToken() {
     Token target{};
-    const char first{extract()};
-    Token::Type type{getPartialTokenType(first)};
+    const char first{ extract() };
+    target.type = guessTokenType(first);
 
-    bool is_separator{type == Token::Type::__SEPARATOR};
-    if (is_separator) {
-        // Necessary to decremenet pointer to capture '.' again with getNumberData()
-        backtrack();
+    // Handle numbers
+    if (target.type == Token::Type::__DIGIT || target.type == Token::Type::__SEPARATOR) {
+        target = generateNumericToken(target.type);
     }
-
-    if (type == Token::Type::__DIGIT || is_separator) {
-        auto data{getNumberData()};
-        type = data.type;
-
-        if (type == Token::Type::INT) {
-            target.literal = Literal{std::in_place_type<int>, std::stoi(data.value_str)};
-        } else if (type == Token::Type::DOUBLE) {
-            target.literal = Literal{std::in_place_type<double>, std::stod(data.value_str)};
-        } else {
-            throw std::runtime_error("CODE FAULT: A digit token was converted into something non-numeric!");
-        }
-
-    } else {
+    else {
         target.literal = first;
         target.lexeme = first;
     }
+    prepareNextToken();
 
-    target.type = type;
-    readyNextToken();
-    return target;
+    // Ignore whitespace via recursion
+    return target.type == Token::Type::__WHITESPACE ? getToken() : target;
 }
 
-Token::Type Lexer::getPartialTokenType(char ch) const {
+Token Lexer::generateNumericToken(Token::Type init_guess) {
+    // Redirect the initial guess to a numeric type
+    Token::Type new_guess{ init_guess == Token::Type::__SEPARATOR ? Token::Type::DOUBLE : Token::Type::INT };
+
+    const auto data{ getNumericTokenData(new_guess) };
+    Literal literal{};
+
+    if (data.type == Token::Type::INT) {
+        literal = Literal{ std::in_place_type<int>, std::stoi(data.value_str) };
+    }
+    else if (data.type == Token::Type::DOUBLE) {
+        literal = Literal{ std::in_place_type<double>, std::stod(data.value_str) };
+    }
+
+    // Strictly for debugging
+    else if (data.type != Token::Type::INVALID) {
+        throw std::runtime_error("CODE FAULT: A digit token was converted into something non-numeric!");
+    }
+
+    return { data.type, literal, data.value_str };
+}
+
+Token::Type Lexer::guessTokenType(char ch) const {
     switch (ch) {
-        // Handle symbols...
+        // Double specifier
         case '.':
             return Token::Type::__SEPARATOR;
+
+        // Grouping
         case '(':
             return Token::Type::LEFT_PAREN;
         case ')':
@@ -101,6 +111,8 @@ Token::Type Lexer::getPartialTokenType(char ch) const {
             return Token::Type::LEFT_BRACK;
         case ']':
             return Token::Type::RIGHT_BRACK;
+
+        // Operators
         case '+':
             return Token::Type::PLUS;
         case '-':
@@ -109,6 +121,8 @@ Token::Type Lexer::getPartialTokenType(char ch) const {
             return Token::Type::STAR;
         case '/':
             return Token::Type::SLASH;
+        case '!':
+            return Token::Type::FACTORIAL;
         
         // Whitespace (will eventually ignore)
         case ' ':
@@ -118,7 +132,7 @@ Token::Type Lexer::getPartialTokenType(char ch) const {
         case '\r':
             return Token::Type::__WHITESPACE;
 
-        // Integers and doubles
+        // Numbers
         default:
             if (std::isdigit(ch)) {
                 return Token::Type::__DIGIT;
@@ -128,30 +142,31 @@ Token::Type Lexer::getPartialTokenType(char ch) const {
     return Token::Type::INVALID;
 }
 
-Lexer::NumberData Lexer::getNumberData() {
-    Token::Type type{Token::Type::INT};
+Lexer::NumberData Lexer::getNumericTokenData(Token::Type final_guess) {
+    Token::Type type{ final_guess };
     
     while (!isEOF()) {
-        Token::Type partial_type{getPartialTokenType(peek())};
+        Token::Type partial_type{ guessTokenType(peek()) };
 
         if (partial_type == Token::Type::__SEPARATOR) {
+            // i.e. a separator was already encountered in the target token
+            if (type == Token::Type::DOUBLE) {
+                return { Token::Type::INVALID, "" };
+            }
             type = Token::Type::DOUBLE;
-        } else if (partial_type != Token::Type::__DIGIT) {
+        }
+        else if (partial_type != Token::Type::__DIGIT) {
             break;
         }
 
         advance();
     }
 
-    return {type, std::string{m_start, m_current}};
+    return { type, std::string{ m_start, m_current } };
 }
 
 void Lexer::advance() {
     ++m_current;
-}
-
-void Lexer::backtrack() {
-    --m_current;
 }
 
 char Lexer::extract() {
@@ -170,10 +185,10 @@ void Lexer::peek(char& ch) const {
     ch = *m_current;
 }
 
-void Lexer::readyNextToken() {
+void Lexer::prepareNextToken() {
     m_start = m_current;
 }
 
 bool Lexer::isEOF() const {
-    return m_current >= m_content.end();
+    return m_current == m_content.end();
 }

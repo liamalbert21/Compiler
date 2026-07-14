@@ -1,11 +1,15 @@
 #include "Token.hpp"
 
+// This function should be automatically generated
 std::string Token::toString(Type type) {
     switch (type) {
+        // Numbers
         case Type::INT:
             return "int";
         case Type::DOUBLE:
             return "double";
+        
+        // Grouping
         case Type::LEFT_PAREN:
             return "left parenthesis";
         case Type::RIGHT_PAREN:
@@ -14,6 +18,8 @@ std::string Token::toString(Type type) {
             return "left bracket";
         case Type::RIGHT_BRACK:
             return "right bracket";
+
+        // Operators
         case Type::PLUS:
             return "plus sign";
         case Type::MINUS:
@@ -22,8 +28,10 @@ std::string Token::toString(Type type) {
             return "multiplication sign";
         case Type::SLASH:
             return "division sign";
+        case Type::FACTORIAL:
+            return "factorial sign";
 
-        // These words should never show up. If they do, the lexer failed.
+        // These strings should never be displayed to the user
         case Type::__DIGIT:
             return "digit";
         case Type::__SEPARATOR:
@@ -36,5 +44,5 @@ std::string Token::toString(Type type) {
 }
 
 Token::operator bool() const {
-    return this->type != Type::INVALID;
+    return type != Type::INVALID;
 }
