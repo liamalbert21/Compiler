@@ -2,7 +2,19 @@
 
 #include "Token.hpp"
 
-class Expr {};
+class Expr {
+public:
+    enum class Type {
+        BINARY, UNARY, PRIMARY
+    };
+
+    Expr() = default;
+    Expr(Literal literal);
+    Literal getLiteral() const;
+
+private:
+    Literal m_literal{};
+};
 
 class Binary : public Expr {
 public:

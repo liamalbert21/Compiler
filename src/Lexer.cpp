@@ -19,9 +19,8 @@ void Lexer::tokenize() {
     m_tokens.clear();
 
     // "token" will be deemed false if its type is invalid
-    while (Token&& token{getToken()}) {
+    while (Token&& token{ getToken() }) {
         m_tokens.push_back(token);
-
         if (isEOF()) {
             return;
         }
@@ -53,6 +52,10 @@ void Lexer::printTokens(int right_just) const {
 
         std::cout << '\r' << Token::toString(token.type) << '\n';
     }
+}
+
+const std::vector<Token>& Lexer::getTokens() const {
+    return m_tokens;
 }
 
 Token Lexer::getToken() {
@@ -97,52 +100,54 @@ Token Lexer::generateNumericToken(Token::Type init_guess) {
 }
 
 Token::Type Lexer::guessTokenType(char ch) const {
+    using enum Token::Type;
+
     switch (ch) {
         // Double specifier
         case '.':
-            return Token::Type::__SEPARATOR;
+            return __SEPARATOR;
 
         // Grouping
         case '(':
-            return Token::Type::LEFT_PAREN;
+            return LEFT_PAREN;
         case ')':
-            return Token::Type::RIGHT_PAREN;
+            return RIGHT_PAREN;
         case '[':
-            return Token::Type::LEFT_BRACK;
+            return LEFT_BRACK;
         case ']':
-            return Token::Type::RIGHT_BRACK;
+            return RIGHT_BRACK;
 
         // Operators
         case '+':
-            return Token::Type::PLUS;
+            return PLUS;
         case '-':
-            return Token::Type::MINUS;
+            return MINUS;
         case '*':
-            return Token::Type::STAR;
+            return STAR;
         case '/':
-            return Token::Type::SLASH;
+            return SLASH;
         case '!':
-            return Token::Type::FACTORIAL;
+            return FACTORIAL;
         
         // Whitespace (will eventually ignore)
         case ' ':
-            return Token::Type::__WHITESPACE;
+            return __WHITESPACE;
         case '\n':
-            return Token::Type::__WHITESPACE;
+            return __WHITESPACE;
         case '\r':
-            return Token::Type::__WHITESPACE;
+            return __WHITESPACE;
 
         // Numbers
         default:
             if (std::isdigit(ch)) {
-                return Token::Type::__DIGIT;
+                return __DIGIT;
             }
     }
 
-    return Token::Type::INVALID;
+    return INVALID;
 }
 
-Lexer::NumberData Lexer::getNumericTokenData(Token::Type final_guess) {
+Lexer::Number Lexer::getNumericTokenData(Token::Type final_guess) {
     Token::Type type{ final_guess };
     
     while (!isEOF()) {

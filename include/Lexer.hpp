@@ -10,9 +10,10 @@ public:
     Lexer(std::ifstream&& input);
     void tokenize();
     void printTokens(int right_just) const;
+    const std::vector<Token>& getTokens() const;
 
 private:
-    struct NumberData {
+    struct Number {
         Token::Type type{};
         std::string value_str{};
     };
@@ -20,7 +21,7 @@ private:
     Token getToken();
     Token generateNumericToken(Token::Type init_guess);
     Token::Type guessTokenType(char ch) const;
-    NumberData getNumericTokenData(Token::Type final_guess);
+    Number getNumericTokenData(Token::Type final_guess);
 
     void advance();
     char extract();
@@ -32,5 +33,5 @@ private:
 
     std::vector<Token> m_tokens{};
     std::string m_content{};
-    std::string::iterator m_start{}, m_current{};
+    std::string::const_iterator m_start{}, m_current{};
 };

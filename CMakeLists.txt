@@ -9,6 +9,8 @@ add_executable(${PROJECT_NAME}
     src/Token.cpp
 )
 
+set(CMAKE_COMPILE_WARNING_AS_ERROR ON)
+
 target_include_directories(${PROJECT_NAME} PRIVATE
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:include>

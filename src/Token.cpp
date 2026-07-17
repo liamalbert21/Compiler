@@ -1,42 +1,43 @@
 #include "Token.hpp"
 
-// This function should be automatically generated
 std::string Token::toString(Type type) {
+    using enum Type;
+
     switch (type) {
         // Numbers
-        case Type::INT:
+        case INT:
             return "int";
-        case Type::DOUBLE:
+        case DOUBLE:
             return "double";
         
         // Grouping
-        case Type::LEFT_PAREN:
+        case LEFT_PAREN:
             return "left parenthesis";
-        case Type::RIGHT_PAREN:
+        case RIGHT_PAREN:
             return "right parenthesis";
-        case Type::LEFT_BRACK:
+        case LEFT_BRACK:
             return "left bracket";
-        case Type::RIGHT_BRACK:
+        case RIGHT_BRACK:
             return "right bracket";
 
         // Operators
-        case Type::PLUS:
+        case PLUS:
             return "plus sign";
-        case Type::MINUS:
+        case MINUS:
             return "minus sign";
-        case Type::STAR:
+        case STAR:
             return "multiplication sign";
-        case Type::SLASH:
+        case SLASH:
             return "division sign";
-        case Type::FACTORIAL:
+        case FACTORIAL:
             return "factorial sign";
 
         // These strings should never be displayed to the user
-        case Type::__DIGIT:
+        case __DIGIT:
             return "digit";
-        case Type::__SEPARATOR:
+        case __SEPARATOR:
             return "separator";
-        case Type::__WHITESPACE:
+        case __WHITESPACE:
             return "whitespace";
     }
     
@@ -45,4 +46,8 @@ std::string Token::toString(Type type) {
 
 Token::operator bool() const {
     return type != Type::INVALID;
+}
+
+bool Token::operator==(const Token& other) const {
+    return type == other.type && literal == other.literal && lexeme == other.lexeme;
 }

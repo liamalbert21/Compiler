@@ -1,12 +1,15 @@
+#include "Parser.hpp"
 #include "Lexer.hpp"
+#include "Settings.hpp"
 
 int main() {
-    // Maybe use a singleton class for settings? This could also work for an error handler
-    constexpr int right_just{30};
-
     Lexer lexer{ std::ifstream{ PROJECT_ROOT_DIR "Code.txt" } };
     lexer.tokenize();
-    lexer.printTokens(right_just);
+    lexer.printTokens(Settings::Text::RIGHT_JUST);
+
+    Parser parser{ lexer.getTokens() };
+    parser.generateAST();
+    parser.printAST();
 
     return 0;
 }
