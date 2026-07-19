@@ -2,42 +2,86 @@
 
 #include "Token.hpp"
 
+#include <memory>
+
+class Binary; class Unary; class Primary;
+
+/**
+ * Because all the instances relating to Expr must be pointers (given that Expr
+ * is abstract), children must inherit Expr publicly to be able to match the
+ * Expr type when recursively assigning child nodes that need to be interpreted
+ * as pointers to Expr.
+ */
 class Expr {
 public:
-    enum class Type {
-        BINARY, UNARY, PRIMARY
+    class Visitor {
+    public:
+        virtual void visit(Binary& binary)   = 0;
+        virtual void visit(Unary& unary)     = 0;
+        virtual void visit(Primary& primary) = 0;
     };
 
-    Expr() = default;
-    Expr(Literal literal);
-    Literal getLiteral() const;
+    class Eval : public Visitor {
+    public:
+        void visit(Binary& binary) override;
+        void visit(Unary& unary) override;
+        void visit(Primary& primary) override;
+    };
 
-private:
-    Literal m_literal{};
+    class Print : public Visitor {
+    public:
+        void visit(Binary& binary) override;
+        void visit(Unary& unary) override;
+        void visit(Primary& primary) override;
+    };
+
+    /**
+     * Deleting an object through a pointer to base invokes undefined behavior unless
+     * the destructor in the base class is virtual. Otherwise, calling code can attempt to destroy
+     * a derived class object through a base class pointer.
+     * 
+     * ----- e.g. -----
+     * std::unique_ptr<Expr> expr{ std::make_unique<Binary>(...) };
+     * ~expr(); // 'expr' is a base class pointer (implemented under type Binary)
+     * 
+     * I originally did not have this destructor. The compiler was calling delete on
+     * 'Expr', but it is abstract and did not have a virtual destructor (runtime
+     * polymorphism), so an error was thrown to avoid UB by inappropriately modifying memory.
+     * 
+     * \cite isocpp
+     * \cite cppreference
+     */
+    virtual ~Expr() = default;
+    
+protected:
+    virtual void accept(Visitor& visitor) = 0;
 };
 
 class Binary : public Expr {
 public:
-    Binary(Expr left, Token op, Expr right);
+    Binary(std::unique_ptr<Expr> expr, Token op, std::unique_ptr<Expr> right);
+    void accept(Visitor& visitor) override;
 
 private:
-    Expr m_left{}, m_right{};
+    std::unique_ptr<Expr> m_left{}, m_right{};
     Token m_op{};
 };
 
 class Unary : public Expr {
 public:
-    Unary(Token op, Expr right);
-
+    Unary(Token op, std::unique_ptr<Expr> right);
+    void accept(Visitor& visitor) override;
+    
 private:
-    Expr m_right{};
+    std::unique_ptr<Expr> m_right{};
     Token m_op{};
 };
 
-class Grouping : public Expr {
+class Primary : public Expr {
 public:
-    Grouping(Expr expr);
-
+    Primary(Token literal);
+    void accept(Visitor& visitor) override;
+    
 private:
-    Expr m_expr{};
+    Token m_literal{};
 };

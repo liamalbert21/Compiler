@@ -39,6 +39,10 @@ std::string Token::toString(Type type) {
             return "separator";
         case __WHITESPACE:
             return "whitespace";
+
+        // Invalid tokens
+        case INVALID:
+            return "invalid";
     }
     
     return "unknown";

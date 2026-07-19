@@ -69,6 +69,7 @@ Token Lexer::getToken() {
     }
     else {
         target.literal = first;
+        std::variant<char, int, double> x = first;
         target.lexeme = first;
     }
     prepareNextToken();
