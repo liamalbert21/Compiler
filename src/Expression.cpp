@@ -9,9 +9,9 @@ void Binary::accept(Visitor& visitor) {
     visitor.visit(*this);
 }
 
-Unary::Unary(Token op, std::unique_ptr<Expr> right) :
+Unary::Unary(Token op, std::unique_ptr<Expr> expr) :
     m_op   { op },
-    m_right{ std::move(right) } {}
+    m_expr{ std::move(expr) } {}
 
 void Unary::accept(Visitor& visitor) {
     visitor.visit(*this);
@@ -24,10 +24,19 @@ void Primary::accept(Visitor& visitor) {
     visitor.visit(*this);
 }
 
-void Expr::Eval::visit(Binary& binary)  { return; }
-void Expr::Eval::visit(Unary& binary)   { return; }
-void Expr::Eval::visit(Primary& binary) { return; }
+Grouping::Grouping(std::unique_ptr<Expr> expr) :
+    m_expr{ std::move(expr) } {}
 
-void Expr::Print::visit(Binary& binary)  { return; }
-void Expr::Print::visit(Unary& binary)   { return; }
-void Expr::Print::visit(Primary& binary) { return; }
+void Grouping::accept(Visitor& visitor) {
+    visitor.visit(*this);
+}
+
+void Expr::Eval::visit(Binary& binary)      { return; }
+void Expr::Eval::visit(Unary& binary)       { return; }
+void Expr::Eval::visit(Primary& binary)     { return; }
+void Expr::Eval::visit(Grouping& grouping)  { return; }
+
+void Expr::Print::visit(Binary& binary)     { return; }
+void Expr::Print::visit(Unary& binary)      { return; }
+void Expr::Print::visit(Primary& binary)    { return; }
+void Expr::Print::visit(Grouping& grouping) { return; }

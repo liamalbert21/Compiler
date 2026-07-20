@@ -12,7 +12,7 @@ Parser::Parser(const std::vector<Token>& tokens) :
     }
 
 void Parser::generateAST() {
-    m_ast = term();
+    m_ast = expression();
 }
 
 void Parser::printAST() const {
@@ -20,21 +20,26 @@ void Parser::printAST() const {
 }
 
 std::optional<Token> Parser::matchTokens(std::initializer_list<Token::Type> types) const {
+    // Must check this before attempting to peek at the target (current) token
+    if (isEOF()) {
+        return std::nullopt;
+    }
+    
     Token target{ peek() };
     const auto it{ std::find(types.begin(), types.end(), target.type) };
     return it != types.end() ? std::optional<Token>{ target } : std::nullopt;
 }
 
-std::unique_ptr<Expr> Parser::term() {
-    std::unique_ptr<Expr> expr{ std::move(factor()) };
+std::unique_ptr<Expr> Parser::expression() {
+    return term();
+}
 
-    for (bool good_expr{ true }; !isEOF() && good_expr; advance()) {
-        if (auto op{ matchTokens({ Token::Type::PLUS, Token::Type::MINUS }) }; op) {
-            expr = std::make_unique<Binary>(factor(), op.value(), std::move(expr));
-        }
-        else {
-            good_expr = false;
-        }
+std::unique_ptr<Expr> Parser::term() {
+    std::unique_ptr<Expr> expr{ factor() };
+
+    for (auto op{ matchTokens({ Token::Type::PLUS, Token::Type::MINUS }) }; op;) {
+        advance();
+        expr = std::make_unique<Binary>(factor(), op.value(), std::move(expr));
     }
 
     return expr;
@@ -43,13 +48,9 @@ std::unique_ptr<Expr> Parser::term() {
 std::unique_ptr<Expr> Parser::factor() {
     std::unique_ptr<Expr> expr{ unary() };
 
-    for (bool good_expr{ true }; !isEOF() && good_expr; advance()) {
-        if (auto op{ matchTokens({ Token::Type::STAR, Token::Type::SLASH }) }; op) {
-            expr = std::make_unique<Binary>(unary(), op.value(), std::move(expr));
-        }
-        else {
-            good_expr = false;
-        }
+    for (auto op{ matchTokens({ Token::Type::STAR, Token::Type::SLASH }) }; op;) {
+        advance();
+        expr = std::make_unique<Binary>(unary(), op.value(), std::move(expr));
     }
 
     return expr;
@@ -58,27 +59,41 @@ std::unique_ptr<Expr> Parser::factor() {
 std::unique_ptr<Expr> Parser::unary() {
     std::unique_ptr<Expr> expr{ primary() };
 
-    for (bool good_expr{ true }; !isEOF() && good_expr; advance()) {
-        if (auto op{ matchTokens({ Token::Type::MINUS }) }; op) {
-            expr = std::make_unique<Binary>(primary(), op.value(), std::move(expr));
-        }
-        else {
-            good_expr = false;
-        }
+    for (auto op{ matchTokens({ Token::Type::MINUS, Token::Type::FACTORIAL }) }; op;) {
+        advance();
+
+        /**
+         * If expr == nullptr, the operand is the next token (minus)
+         * Otherwise, it's the already-extracted token (factorial)
+         */
+        expr = std::make_unique<Unary>(op.value(), expr ? std::move(expr) : primary());
     }
 
+    /**
+     * Because factorial is left associative, the runtime check for empty expressions
+     * cannot occur until 
+     */
+    if (!expr) {
+        throw std::runtime_error("ERROR: Expected an expression!");
+    }
     return expr;
 }
 
 std::unique_ptr<Expr> Parser::primary() {
-    if (matchTokens({ Token::Type::INT, Token::Type::DOUBLE })) {
-        return std::make_unique<Primary>(extract());
+    std::unique_ptr<Expr> expr{ nullptr };
+
+    if (auto num{ matchTokens({ Token::Type::INT, Token::Type::DOUBLE }) }; num) {
+        expr = std::make_unique<Primary>(num.value());
     }
-    else if (matchTokens({ Token::Type::LEFT_PAREN, Token::Type::LEFT_BRACK })) {
-        // Find corresponding right-side token. Throw an exception if not
-        return {};
+    else if (auto grouping{ matchTokens({ Token::Type::LEFT_PAREN, Token::Type::LEFT_BRACK }) }; grouping) {
+        expr = std::make_unique<Grouping>(expression());
+
+        // The next token MUST correspond to the group type
+        Token::Type end{ grouping.value().type == Token::Type::LEFT_PAREN ? Token::Type::RIGHT_PAREN : Token::Type::RIGHT_BRACK };
+        assert(matchTokens({ end }) && "ERROR: A group in the expression does not close!");
     }
-    throw std::runtime_error("ERROR: Terminal is not a number or grouping symbol!");
+    
+    return expr;
 }
 
 void Parser::advance() {
