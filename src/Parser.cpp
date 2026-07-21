@@ -1,7 +1,6 @@
 #include "Parser.hpp"
 
 #include <cassert>
-#include <iostream>
 #include <stdexcept>
 #include <algorithm>
 
@@ -16,7 +15,7 @@ void Parser::generateAST() {
 }
 
 void Parser::printAST() const {
-    std::cout << "AST printed!" << std::endl;
+    m_ast->accept(Expr::Print{});
 }
 
 std::optional<Token> Parser::matchTokens(std::initializer_list<Token::Type> types) const {
@@ -39,7 +38,7 @@ std::unique_ptr<Expr> Parser::term() {
 
     for (auto op{ matchTokens({ Token::Type::PLUS, Token::Type::MINUS }) }; op;) {
         advance();
-        expr = std::make_unique<Binary>(factor(), op.value(), std::move(expr));
+        expr = std::make_unique<Binary>(std::move(expr), op.value(), factor());
     }
 
     return expr;
@@ -50,7 +49,7 @@ std::unique_ptr<Expr> Parser::factor() {
 
     for (auto op{ matchTokens({ Token::Type::STAR, Token::Type::SLASH }) }; op;) {
         advance();
-        expr = std::make_unique<Binary>(unary(), op.value(), std::move(expr));
+        expr = std::make_unique<Binary>(std::move(expr), op.value(), unary());
     }
 
     return expr;
@@ -66,16 +65,9 @@ std::unique_ptr<Expr> Parser::unary() {
          * If expr == nullptr, the operand is the next token (minus)
          * Otherwise, it's the already-extracted token (factorial)
          */
-        expr = std::make_unique<Unary>(op.value(), expr ? std::move(expr) : primary());
+        expr = std::make_unique<Unary>(op.value(), expr ? std::move(expr) : unary());
     }
-
-    /**
-     * Because factorial is left associative, the runtime check for empty expressions
-     * cannot occur until 
-     */
-    if (!expr) {
-        throw std::runtime_error("ERROR: Expected an expression!");
-    }
+    
     return expr;
 }
 

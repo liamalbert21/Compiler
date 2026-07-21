@@ -16,26 +16,26 @@ class Expr {
 public:
     class Visitor {
     public:
-        virtual void visit(Binary& binary)     = 0;
-        virtual void visit(Unary& unary)       = 0;
-        virtual void visit(Primary& primary)   = 0;
-        virtual void visit(Grouping& grouping) = 0;
+        virtual void visit(Binary& binary)     const = 0;
+        virtual void visit(Unary& unary)       const = 0;
+        virtual void visit(Primary& primary)   const = 0;
+        virtual void visit(Grouping& grouping) const = 0;
     };
 
     class Eval : public Visitor {
     public:
-        void visit(Binary& binary) override;
-        void visit(Unary& unary) override;
-        void visit(Primary& primary) override;
-        void visit(Grouping& grouping) override;
+        void visit(Binary& binary)     const override;
+        void visit(Unary& unary)       const override;
+        void visit(Primary& primary)   const override;
+        void visit(Grouping& grouping) const override;
     };
 
     class Print : public Visitor {
     public:
-        void visit(Binary& binary) override;
-        void visit(Unary& unary) override;
-        void visit(Primary& primary) override;
-        void visit(Grouping& grouping) override;
+        void visit(Binary& binary)     const override;
+        void visit(Unary& unary)       const override;
+        void visit(Primary& primary)   const override;
+        void visit(Grouping& grouping) const override;
     };
 
     /**
@@ -55,9 +55,7 @@ public:
      * \cite cppreference
      */
     virtual ~Expr() = default;
-    
-protected:
-    virtual void accept(Visitor& visitor) = 0;
+    virtual void accept(const Visitor& visitor) = 0;
 };
 
 /**
@@ -66,7 +64,7 @@ protected:
 class Binary : public Expr {
 public:
     Binary(std::unique_ptr<Expr> expr, Token op, std::unique_ptr<Expr> right);
-    void accept(Visitor& visitor) override;
+    void accept(const Visitor& visitor) override;
 
 private:
     std::unique_ptr<Expr> m_left{}, m_right{};
@@ -80,7 +78,7 @@ private:
 class Unary : public Expr {
 public:
     Unary(Token op, std::unique_ptr<Expr> right);
-    void accept(Visitor& visitor) override;
+    void accept(const Visitor& visitor) override;
     
 private:
     std::unique_ptr<Expr> m_expr{};
@@ -93,7 +91,7 @@ private:
 class Primary : public Expr {
 public:
     Primary(Token literal);
-    void accept(Visitor& visitor) override;
+    void accept(const Visitor& visitor) override;
     
 private:
     Token m_literal{};
@@ -105,7 +103,7 @@ private:
 class Grouping : public Expr {
 public:
     Grouping(std::unique_ptr<Expr> expr);
-    void accept(Visitor& visitor) override;
+    void accept(const Visitor& visitor) override;
 
 private:
     std::unique_ptr<Expr> m_expr{};
