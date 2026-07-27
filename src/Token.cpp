@@ -1,51 +1,84 @@
 #include "Token.hpp"
 
-std::string Token::toString(Type type) {
+#include <iostream>
+
+void Token::Print::type(const Token& token) {
     using enum Type;
 
-    switch (type) {
+    switch (token.type) {
         // Numbers
         case INT:
-            return "int";
+            std::cout << "int";
+            break;
         case DOUBLE:
-            return "double";
+            std::cout << "double";
+            break;
         
         // Grouping
         case LEFT_PAREN:
-            return "left parenthesis";
+            std::cout << "left parenthesis";
+            break;
         case RIGHT_PAREN:
-            return "right parenthesis";
+            std::cout << "right parenthesis";
+            break;
         case LEFT_BRACK:
-            return "left bracket";
+            std::cout << "left bracket";
+            break;
         case RIGHT_BRACK:
-            return "right bracket";
+            std::cout << "right bracket";
+            break;
 
         // Operators
         case PLUS:
-            return "plus sign";
+            std::cout << "plus sign";
+            break;
         case MINUS:
-            return "minus sign";
+            std::cout << "minus sign";
+            break;
         case STAR:
-            return "multiplication sign";
+            std::cout << "multiplication sign";
+            break;
         case SLASH:
-            return "division sign";
+            std::cout << "division sign";
+            break;
         case FACTORIAL:
-            return "factorial sign";
+            std::cout << "factorial sign";
+            break;
 
         // These strings should never be displayed to the user
         case __DIGIT:
-            return "digit";
+            std::cout << "digit";
+            break;
         case __SEPARATOR:
-            return "separator";
+            std::cout << "separator";
+            break;
         case __WHITESPACE:
-            return "whitespace";
+            std::cout << "whitespace";
+            break;
 
         // Invalid tokens
         case INVALID:
-            return "invalid";
+            std::cout << "invalid";
+            break;
+
+        default:
+            std::cout << "unknown";
     }
-    
-    return "unknown";
+}
+
+std::ostream& operator<<(std::ostream& out, const Token& token) {
+    switch (token.type) {
+        case Token::Type::INT:
+            out << std::get<int>(token.literal);
+            break;
+        case Token::Type::DOUBLE:
+            out << std::get<double>(token.literal);
+            break;
+        default:
+            out << std::get<char>(token.literal);
+    }
+
+    return out;
 }
 
 Token::operator bool() const {

@@ -2,15 +2,15 @@
 
 #include "Token.hpp"
 
-#include <fstream>
+#include <filesystem>
 #include <vector>
 
 class Lexer {
 public:
-    Lexer(std::ifstream&& input);
-    void tokenize();
-    void printTokens(int right_just) const;
-    const std::vector<Token>& getTokens() const;
+    Lexer(const std::filesystem::path& input);
+
+    std::vector<Token> tokenize();
+    void printTokens(const std::vector<Token>& tokens, std::size_t right_just) const;
 
 private:
     struct Number {
@@ -31,7 +31,6 @@ private:
     void prepareNextToken();
     bool isEOF() const;
 
-    std::vector<Token> m_tokens{};
     std::string m_content{};
     std::string::const_iterator m_start{}, m_current{};
 };

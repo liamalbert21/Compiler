@@ -62,6 +62,8 @@ public:
  * 2 operands (expressions), 1 operator
  */
 class Binary : public Expr {
+    friend class Expr;
+
 public:
     Binary(std::unique_ptr<Expr> expr, Token op, std::unique_ptr<Expr> right);
     void accept(const Visitor& visitor) override;
@@ -76,8 +78,10 @@ private:
  * Can be left or right associative
  */
 class Unary : public Expr {
+    friend class Expr;
+
 public:
-    Unary(Token op, std::unique_ptr<Expr> right);
+    Unary(Token op, std::unique_ptr<Expr> expr);
     void accept(const Visitor& visitor) override;
     
 private:
@@ -89,18 +93,22 @@ private:
  * 1 operand (token/literal)
  */
 class Primary : public Expr {
+    friend class Expr;
+
 public:
-    Primary(Token literal);
+    Primary(const Token& token);
     void accept(const Visitor& visitor) override;
     
 private:
-    Token m_literal{};
+    Token m_value{};
 };
 
 /**
  * 1 operand (expression)
  */
 class Grouping : public Expr {
+    friend class Expr;
+
 public:
     Grouping(std::unique_ptr<Expr> expr);
     void accept(const Visitor& visitor) override;

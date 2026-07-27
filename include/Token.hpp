@@ -17,9 +17,13 @@ struct Token {
         __DIGIT, __SEPARATOR, __WHITESPACE,
     };
 
-    static std::string toString(Type type);
+    struct Print {
+        static void type(const Token& token);
+    };
+
     explicit operator bool() const;
     bool operator==(const Token& other) const;
+    friend std::ostream& operator<<(std::ostream& out, const Token& token);
 
     Type type{};
     Literal literal{};

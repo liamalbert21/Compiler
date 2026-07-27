@@ -2,12 +2,12 @@
 #include "Lexer.hpp"
 #include "Settings.hpp"
 
-int main() {
-    Lexer lexer{ std::ifstream{ PROJECT_ROOT_DIR "Code.txt" } };
-    lexer.tokenize();
-    lexer.printTokens(Settings::Text::RIGHT_JUST);
+auto main() -> int {
+    Lexer lexer{ Settings::File::root_dir / Settings::File::input };
+    std::vector<Token> tokens{ lexer.tokenize() };
+    lexer.printTokens(tokens, Settings::Text::right_just);
 
-    Parser parser{ lexer.getTokens() };
+    Parser parser{ std::move(tokens) };
     parser.generateAST();
     parser.printAST();
 

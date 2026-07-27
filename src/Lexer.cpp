@@ -1,13 +1,16 @@
 #include "Lexer.hpp"
 
 #include <iostream>
+#include <fstream>
+#include <sstream>
 #include <iomanip>
 #include <cassert>
-#include <sstream>
 
-Lexer::Lexer(std::ifstream&& input) {
+namespace fs = std::filesystem;
+
+Lexer::Lexer(const fs::path& input) {
     std::ostringstream oss{};
-    oss << input.rdbuf();
+    oss << std::ifstream{ std::ifstream{ input } }.rdbuf();
     m_content = oss.str();
 
     assert(m_content.length() > 0);
@@ -15,49 +18,41 @@ Lexer::Lexer(std::ifstream&& input) {
     m_current = m_content.begin();
 }
 
-void Lexer::tokenize() {
-    m_tokens.clear();
+std::vector<Token> Lexer::tokenize() {
+    std::vector<Token> tokens;
 
     // "token" will be deemed false if its type is invalid
     while (Token&& token{ getToken() }) {
-        m_tokens.push_back(token);
+        // Ignore whitespace
+        if (token.type != Token::Type::__WHITESPACE) {
+            tokens.push_back(token);
+        }
         if (isEOF()) {
-            return;
+            return tokens;
         }
     }
 
     throw std::runtime_error("ERROR: Invalid syntax!");
 }
 
-void Lexer::printTokens(int right_just) const {
-    if (m_tokens.empty()) {
+void Lexer::printTokens(const std::vector<Token>& tokens, std::size_t right_just) const {
+    if (tokens.empty()) {
         std::cerr << "ERROR: Token data has yet to be acquired!\n";
         return;
     }
 
-    for (const Token& token : m_tokens) {
-        std::cout << std::setw(right_just);
-
-        // Cannot send std::variant directly to cout buffer
-        switch (token.type) {
-            case Token::Type::INT:
-                std::cout << std::get<int>(token.literal);
-                break;
-            case Token::Type::DOUBLE:
-                std::cout << std::get<double>(token.literal);
-                break;
-            default:
-                std::cout << std::get<char>(token.literal);
-        }
-
-        std::cout << '\r' << Token::toString(token.type) << '\n';
+    for (const Token& token : tokens) {
+        std::cout << std::setw(right_just) << token << '\r';
+        Token::Print::type(token);
+        std::cout << '\n';
     }
 }
 
-const std::vector<Token>& Lexer::getTokens() const {
-    return m_tokens;
-}
 
+/**
+ * I originally wanted to handle whitespace here via recursion. The solution looked extremely clean but
+ * surely would have caused stack overflow when provided inputs with many contiguous whitespace characters.
+ */
 Token Lexer::getToken() {
     Token target{};
     const char first{ extract() };
@@ -69,13 +64,11 @@ Token Lexer::getToken() {
     }
     else {
         target.literal = first;
-        std::variant<char, int, double> x = first;
         target.lexeme = first;
     }
     prepareNextToken();
 
-    // Ignore whitespace via recursion
-    return target.type == Token::Type::__WHITESPACE ? getToken() : target;
+    return target;
 }
 
 Token Lexer::generateNumericToken(Token::Type init_guess) {
