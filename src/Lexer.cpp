@@ -49,10 +49,8 @@ void Lexer::printTokens(const std::vector<Token>& tokens, std::size_t right_just
 }
 
 
-/**
- * I originally wanted to handle whitespace here via recursion. The solution looked extremely clean but
- * surely would have caused stack overflow when provided inputs with many contiguous whitespace characters.
- */
+// I originally wanted to handle whitespace here via recursion. The solution looked extremely clean but
+// surely would have caused stack overflow when provided inputs with many contiguous whitespace characters.
 Token Lexer::getToken() {
     Token target{};
     const char first{ extract() };

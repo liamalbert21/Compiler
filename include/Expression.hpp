@@ -6,12 +6,10 @@
 
 class Binary; class Unary; class Primary; class Grouping;
 
-/**
- * Because every instance that relates to Expr must be a pointer (as Expr
- * is abstract), children must inherit Expr publicly to be able to match the
- * Expr type when recursively assigning child nodes that need to be interpreted
- * as pointers to Expr.
- */
+// Because every instance that retes to Expr must be a pointer (as Expr
+// is abstract), children must inherit Expr publicly to be able to match the
+// Expr type when recursively assigning child nodes that need to be interpreted
+// as pointers to Expr.
 class Expr {
 public:
     class Visitor {
@@ -38,29 +36,23 @@ public:
         void visit(Grouping& grouping) const override;
     };
 
-    /**
-     * Deleting an object through a pointer to base invokes undefined behavior unless
-     * the destructor in the base class is virtual. Otherwise, calling code can attempt to destroy
-     * a derived class object through a base class pointer.
-     * 
-     * ----- e.g. -----
-     * std::unique_ptr<Expr> expr{ std::make_unique<Binary>(...) };
-     * ~expr(); // 'expr' is a base class pointer (implemented under type Binary)
-     * 
-     * I originally did not have this destructor. The compiler was calling delete on
-     * 'Expr', but it is abstract and did not have a virtual destructor (runtime
-     * polymorphism), so an error was thrown to avoid UB by inappropriately modifying memory.
-     * 
-     * \cite isocpp
-     * \cite cppreference
-     */
+    // Deleting an object through a pointer to base invokes undefined behavior unless
+    // the destructor in the base class is virtual. Otherwise, calling code can attempt to destroy
+    // a derived class object through a base class pointer.
+    // 
+    // ----- e.g. -----
+    // std::unique_ptr<Expr> expr{ std::make_unique<Binary>(...) };
+    // ~expr(); // 'expr' is a base class pointer (implemented under type Binary)
+    // 
+    // I originally did not have this destructor. The compiler was calling delete on
+    // 'Expr', but it is abstract and did not have a virtual destructor (runtime
+    // polymorphism), so an error was thrown to avoid UB by inappropriately modifying memory.
+    //
     virtual ~Expr() = default;
     virtual void accept(const Visitor& visitor) = 0;
 };
 
-/**
- * 2 operands (expressions), 1 operator
- */
+// 2 operands (expressions), 1 operator
 class Binary : public Expr {
     friend class Expr;
 
@@ -73,10 +65,8 @@ private:
     Token m_op{};
 };
 
-/**
- * 1 operand (expression), 1 operator
- * Can be left or right associative
- */
+// 1 operand (expression), 1 operator
+// Can be left or right associative
 class Unary : public Expr {
     friend class Expr;
 
@@ -89,9 +79,7 @@ private:
     Token m_op{};
 };
 
-/**
- * 1 operand (token/literal)
- */
+// 1 operand (token/literal)
 class Primary : public Expr {
     friend class Expr;
 
@@ -103,9 +91,7 @@ private:
     Token m_value{};
 };
 
-/**
- * 1 operand (expression)
- */
+// 1 operand (expression)
 class Grouping : public Expr {
     friend class Expr;
 

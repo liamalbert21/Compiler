@@ -68,10 +68,8 @@ std::unique_ptr<Expr> Parser::unary::right(Parser& parser) {
         return unary{}.left(parser);
     }
 
-    /**
-     * Because these operators are right-associative, they requrire that we find the
-     * operand AFTER the operator.
-     */
+    // Because these operators are right-associative, they requrire that we find the
+    // operand AFTER the operator.
     else if (auto op{ parser.matchTokens({ Token::Type::MINUS }) }) {
         return std::make_unique<Unary>(op.value(), unary{}.right(parser));
     }
@@ -80,10 +78,9 @@ std::unique_ptr<Expr> Parser::unary::right(Parser& parser) {
 }
 
 std::unique_ptr<Expr> Parser::unary::left(Parser& parser) {
-    /**
-     * Because these operators are left-associative, they requrire that we find the
-     * operand BEFORE the operator.
-     */
+    
+    // Because these operators are left-associative, they requrire that we find the
+    // operand BEFORE the operator.
     std::unique_ptr<Expr> expr{ parser.primary() };
 
     if (!parser.isEOF()) {
