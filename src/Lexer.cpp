@@ -10,7 +10,7 @@ namespace fs = std::filesystem;
 
 Lexer::Lexer(const fs::path& input) {
     std::ostringstream oss{};
-    oss << std::ifstream{ std::ifstream{ input } }.rdbuf();
+    oss << std::ifstream{ input }.rdbuf();
     m_content = oss.str();
 
     assert(m_content.length() > 0);
