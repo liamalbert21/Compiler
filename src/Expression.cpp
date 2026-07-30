@@ -33,28 +33,39 @@ void Grouping::accept(const Visitor& visitor) {
     visitor.visit(*this);
 }
 
-void Expr::Eval::visit(Binary& binary)     const { return; }
-void Expr::Eval::visit(Unary& unary)       const { return; }
-void Expr::Eval::visit(Primary& primary)   const { return; }
-void Expr::Eval::visit(Grouping& grouping) const { return; }
+void Expr::Eval::visit(Binary& binary) const {
+    return;
+}
+
+void Expr::Eval::visit(Unary& unary) const {
+    return;
+}
+
+void Expr::Eval::visit(Primary& primary) const {
+    return;
+}
+
+void Expr::Eval::visit(Grouping& grouping) const {
+    return;
+}
 
 void Expr::Print::visit(Binary& binary) const {
-    std::cout << binary.m_op << '\n';
+    std::cout << binary.m_op << ' ';
     binary.m_left->accept(Expr::Print{});
     binary.m_right->accept(Expr::Print{});
 }
 
 void Expr::Print::visit(Unary& unary) const {
-    std::cout << unary.m_op << '\n';
+    std::cout << unary.m_op << ' ';
     unary.m_expr->accept(Expr::Print{});
 }
 
 void Expr::Print::visit(Primary& primary) const {
-    std::cout << primary.m_value << '\n';
+    std::cout << primary.m_value << ' ';
 }
 
 void Expr::Print::visit(Grouping& grouping) const {
-    std::cout << "{\n";
+    std::cout << "{ ";
     grouping.m_expr->accept(Expr::Print{});
-    std::cout << "}\n";
+    std::cout << "} ";
 }

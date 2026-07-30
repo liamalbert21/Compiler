@@ -66,6 +66,13 @@ void Token::Print::type(const Token& token) {
     }
 }
 
+/**
+ * @brief Prints the provided token's literal
+ *
+ * @param out             output stream (LHS)
+ * @param token           token input   (RHS)
+ * @return std::ostream&  reference to LHS    
+ */
 std::ostream& operator<<(std::ostream& out, const Token& token) {
     switch (token.type) {
         case Token::Type::INT:

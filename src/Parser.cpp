@@ -15,6 +15,7 @@ void Parser::generateAST() {
 }
 
 void Parser::printAST() const {
+    std::cout << '\n';
     m_ast->accept(Expr::Print{});
     std::cout << std::flush;
 }
