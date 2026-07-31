@@ -4,6 +4,7 @@ project(Compiler LANGUAGES CXX VERSION 1.0)
 add_executable(${PROJECT_NAME}
     src/Expression.cpp
     src/Lexer.cpp
+    src/Log.cpp
     src/main.cpp
     src/Parser.cpp
     src/Token.cpp
@@ -12,6 +13,7 @@ add_executable(${PROJECT_NAME}
 set_target_properties(${PROJECT_NAME} PROPERTIES
     COMPILE_WARNING_AS_ERROR ON
     CXX_STANDARD 20
+    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
 )
 
 target_include_directories(${PROJECT_NAME} PRIVATE
