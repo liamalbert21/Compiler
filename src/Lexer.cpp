@@ -1,4 +1,5 @@
 #include "Lexer.hpp"
+#include "Log.hpp"
 
 #include <iostream>
 #include <fstream>
@@ -7,6 +8,13 @@
 #include <cassert>
 
 namespace fs = std::filesystem;
+using ll = long long;
+
+template <>
+struct Error<Lexer> {
+    static std::string InvalidCharacter(const Lexer& lexer);
+    static std::string EmptyInput(const Lexer& lexer);
+};
 
 Lexer::Lexer(const fs::path& input) {
     std::ostringstream oss{};
@@ -32,22 +40,25 @@ std::vector<Token> Lexer::tokenize() {
         }
     }
 
-    throw std::runtime_error("ERROR: Invalid syntax!");
+    Log::instance().error(Error<Lexer>::InvalidCharacter(*this));
+    tokens.clear();
+    return tokens;
+}
+
+void Lexer::tokenize(std::vector<Token>& tokens) {
+    tokens = tokenize();
 }
 
 void Lexer::printTokens(const std::vector<Token>& tokens, std::size_t right_just) const {
     if (tokens.empty()) {
-        std::cerr << "ERROR: Token data has yet to be acquired!\n";
+        Log::instance().error(Error<Lexer>::EmptyInput(*this));
         return;
     }
 
     for (const Token& token : tokens) {
-        std::cout << std::setw(right_just) << token << '\r';
-        Token::Print::type(token);
-        std::cout << '\n';
+        std::cout << std::setw(right_just) << token << '\r' << Token::ToString::Type(token.type) << '\n';
     }
 }
-
 
 // I originally wanted to handle whitespace here via recursion. The solution looked extremely clean but
 // surely would have caused stack overflow when provided inputs with many contiguous whitespace characters.
@@ -188,4 +199,25 @@ void Lexer::prepareNextToken() {
 
 bool Lexer::isEOF() const {
     return m_current == m_content.end();
+}
+
+std::string Error<Lexer>::InvalidCharacter(const Lexer& lexer) {
+    const ll position{ lexer.m_current - lexer.m_content.begin() };
+    std::ostringstream message{};
+    message << "ERROR: Invalid character at position " << position << '\n';
+
+    // Need -1 becuase of the newline
+    std::size_t width{ message.str().length() - 1 };
+
+    message << std::string(width, '-')    << '\n'
+            << lexer.m_content                 << '\n'
+            << std::setw(position + 1)      << "^\n"
+            << std::setw(position + 1)      << "|\n"
+            << std::string(width, '-');
+
+    return message.str();
+}
+
+std::string Error<Lexer>::EmptyInput(const Lexer& lexer) {
+    return "ERROR: Token data has yet to be acquired!";
 }

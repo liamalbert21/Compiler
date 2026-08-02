@@ -1,15 +1,19 @@
 #pragma once
 
+#include "Error.hpp"
 #include "Token.hpp"
 
 #include <filesystem>
 #include <vector>
 
 class Lexer {
+    friend struct Error<Lexer>;
+
 public:
     Lexer(const std::filesystem::path& input);
 
     std::vector<Token> tokenize();
+    void tokenize(std::vector<Token>& tokens);
     void printTokens(const std::vector<Token>& tokens, std::size_t right_just) const;
 
 private:

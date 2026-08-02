@@ -1,15 +1,23 @@
 #include "Parser.hpp"
 #include "Lexer.hpp"
+#include "Log.hpp"
 #include "Settings.hpp"
 
 int main() {
-    Lexer lexer{ Settings::File::root_dir / Settings::File::input };
-    std::vector<Token> tokens{ lexer.tokenize() };
-    lexer.printTokens(tokens, Settings::Text::right_just);
+    std::vector<Token> tokens{};
 
-    Parser parser{ std::move(tokens) };
-    parser.generateAST();
-    parser.printAST();
+    Lexer lexer{ Settings::File::root_dir / Settings::File::input };
+    lexer.tokenize(tokens);
+
+    if (!tokens.empty()) {
+        lexer.printTokens(tokens, Settings::Text::right_just);
+
+        Parser parser{ std::move(tokens) };
+        parser.generateAST();
+        parser.printAST();
+    }
+
+    Log::instance().dump();
 
     return 0;
 }

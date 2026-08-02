@@ -1,13 +1,17 @@
 #pragma once
 
+#include "Error.hpp"
 #include "Expression.hpp"
 
 #include <vector>
 #include <optional>
 
 class Parser {
+    friend struct Error<Parser>;
+
 public:
     Parser(std::vector<Token> tokens);
+
     void generateAST();
     void printAST() const;
 
@@ -33,6 +37,7 @@ private:
     void  peek(Token& token) const;
     bool  isEOF() const;
 
+    bool m_fail_state{};
     std::vector<Token> m_tokens{};
     std::vector<Token>::const_iterator m_current{};
     std::unique_ptr<Expr> m_ast{};

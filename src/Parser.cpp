@@ -1,16 +1,23 @@
 #include "Parser.hpp"
+#include "Log.hpp"
 
 #include <cassert>
 #include <algorithm>
 #include <iostream>
 
+template <>
+struct Error<Parser> {
+    static std::string ExpectedExpression(const Parser& parser, Token::Type type);
+};
+
 Parser::Parser(std::vector<Token> tokens) :
-    m_tokens{ std::move(tokens) } {
+    m_fail_state{ true }, m_tokens{ std::move(tokens) } {
         assert(m_tokens.size() > 0);
         m_current = m_tokens.begin();
     }
 
 void Parser::generateAST() {
+    m_fail_state = false;
     m_ast = expression();
     
     if (!isEOF()) {
@@ -20,6 +27,10 @@ void Parser::generateAST() {
 }
 
 void Parser::printAST() const {
+    if (m_fail_state) {
+        return;
+    }
+
     std::cout << '\n';
     m_ast->accept(Expr::Print{});
     std::cout << std::flush;
@@ -47,9 +58,8 @@ std::unique_ptr<Expr> Parser::expression() {
 std::unique_ptr<Expr> Parser::term() {
     static constexpr std::initializer_list<Token::Type> types{ Token::Type::PLUS, Token::Type::MINUS };
     std::unique_ptr<Expr> expr{ factor() };
-    auto op{ matchTokens(types) };
 
-    while (op) {
+    while (auto op{ matchTokens(types) }) {
         expr = std::make_unique<Binary>(std::move(expr), op.value(), factor());
         op = matchTokens(types);
     }
@@ -60,9 +70,8 @@ std::unique_ptr<Expr> Parser::term() {
 std::unique_ptr<Expr> Parser::factor() {
     static constexpr std::initializer_list<Token::Type> types{ Token::Type::STAR, Token::Type::SLASH };
     std::unique_ptr<Expr> expr{ unary{}.right(*this) };
-    auto op{ matchTokens(types) };
-
-    while (op) {
+    
+    while (auto op{ matchTokens(types) }) {
         expr = std::make_unique<Binary>(std::move(expr), op.value(), unary{}.right(*this));
         op = matchTokens(types);
     }
@@ -76,7 +85,7 @@ std::unique_ptr<Expr> Parser::unary::right(Parser& parser) {
     // Because these operators are right-associative, they requrire that we find the
     // operand AFTER the operator.
     if (auto op{ parser.matchTokens(types) }) {
-        return std::make_unique<Unary>(op.value(), unary{}.right(parser));
+        return std::make_unique<Unary>(op.value(), unary{}.left(parser));
     }
 
     return unary{}.left(parser);
@@ -85,12 +94,18 @@ std::unique_ptr<Expr> Parser::unary::right(Parser& parser) {
 std::unique_ptr<Expr> Parser::unary::left(Parser& parser) {
     static constexpr std::initializer_list<Token::Type> types{ Token::Type::FACTORIAL };
     
-    // Because these operators are left-associative, they requrire that we find the
+    // Because these operators are left-associative, they require that we find the
     // operand BEFORE the operator.
     std::unique_ptr<Expr> expr{ parser.primary() };
 
     if (auto op{ parser.matchTokens(types) }) {
-        expr = std::make_unique<Unary>(op.value(), std::move(expr));
+        if (!expr) {
+            Log::instance().error(Error<Parser>::ExpectedExpression(parser, op.value().type));
+            parser.m_fail_state = true;
+        }
+        else {
+            expr = std::make_unique<Unary>(op.value(), std::move(expr));
+        }
     }
 
     return expr;
@@ -135,4 +150,8 @@ void Parser::peek(Token& token) const {
 
 bool Parser::isEOF() const {
     return m_current == m_tokens.end();
+}
+
+std::string Error<Parser>::ExpectedExpression(const Parser& parser, Token::Type type) {
+    return "ERROR: Expected expression before/after " + Token::ToString::Type(type);
 }

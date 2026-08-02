@@ -2,67 +2,52 @@
 
 #include <iostream>
 
-void Token::Print::type(const Token& token) {
+std::string Token::ToString::Type(const Token::Type type) {
     using enum Type;
 
-    switch (token.type) {
+    switch (type) {
         // Numbers
         case INT:
-            std::cout << "int";
-            break;
+            return "int";
         case DOUBLE:
-            std::cout << "double";
-            break;
+            return "double";
         
         // Grouping
         case LEFT_PAREN:
-            std::cout << "left parenthesis";
-            break;
+            return "left parenthesis";
         case RIGHT_PAREN:
-            std::cout << "right parenthesis";
-            break;
+            return "right parenthesis";
         case LEFT_BRACK:
-            std::cout << "left bracket";
-            break;
+            return "left bracket";
         case RIGHT_BRACK:
-            std::cout << "right bracket";
-            break;
+            return "right bracket";
 
         // Operators
         case PLUS:
-            std::cout << "plus sign";
-            break;
+            return "plus sign";
         case MINUS:
-            std::cout << "minus sign";
-            break;
+            return "minus sign";
         case STAR:
-            std::cout << "multiplication sign";
-            break;
+            return "multiplication sign";
         case SLASH:
-            std::cout << "division sign";
-            break;
+            return "division sign";
         case FACTORIAL:
-            std::cout << "factorial sign";
-            break;
+            return "factorial sign";
 
         // These strings should never be displayed to the user
         case __DIGIT:
-            std::cout << "digit";
-            break;
+            return "digit";
         case __SEPARATOR:
-            std::cout << "separator";
-            break;
+            return "separator";
         case __WHITESPACE:
-            std::cout << "whitespace";
-            break;
+            return "whitespace";
 
         // Invalid tokens
         case INVALID:
-            std::cout << "invalid";
-            break;
+            return "invalid";
 
         default:
-            std::cout << "unknown";
+            return "unknown";
     }
 }
 

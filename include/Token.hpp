@@ -17,8 +17,8 @@ struct Token {
         __DIGIT, __SEPARATOR, __WHITESPACE,
     };
 
-    struct Print {
-        static void type(const Token& token);
+    struct ToString {
+        static std::string Type(const Token::Type type);
     };
 
     explicit operator bool() const;
