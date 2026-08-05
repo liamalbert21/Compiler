@@ -17,16 +17,20 @@ public:
     void printAST() const;
 
 private:
-    std::optional<Token> matchTokens(std::initializer_list<Token::Type> types);
-    std::unique_ptr<Expr> generateExpression(std::initializer_list<Token::Type> types);
+    struct MetaIn {
+        std::size_t input_length{};
+        std::vector<Token>::const_iterator current{};
+    };
+
+    std::optional<Token>  matchTokens(std::initializer_list<Token::Type> types);
 
     std::unique_ptr<Expr> expression();
     std::unique_ptr<Expr> term();
     std::unique_ptr<Expr> factor();
 
     struct unary {
-        std::unique_ptr<Expr> right(Parser& parser);
-        std::unique_ptr<Expr> left(Parser& parser);
+        static std::unique_ptr<Expr> right(Parser& parser);
+        static std::unique_ptr<Expr> left(Parser& parser);
     };
 
     std::unique_ptr<Expr> primary();
@@ -39,7 +43,7 @@ private:
     bool  isEOF() const;
 
     State m_state{};
+    MetaIn m_metadata{};
     std::vector<Token> m_tokens{};
-    std::vector<Token>::const_iterator m_current{};
     std::unique_ptr<Expr> m_ast{};
 };

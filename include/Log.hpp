@@ -10,12 +10,6 @@ public:
     static Log& instance();
     
     bool error(std::string&& message);
-
-    // My intention is that the log is dumped once per cycle. Developers can
-    // choose the stream to which the output is sent (std::cerr by default)
-    // in case they'd like to save the contents and store/use them elsewhere.
-    // Dumping is extremely efficient (thanks to the queue) in case many
-    // messages have accumulated during the compilation process.
     void dump(std::ostream& os = std::cerr);
 
 private:

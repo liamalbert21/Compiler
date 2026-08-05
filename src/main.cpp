@@ -3,10 +3,6 @@
 #include "Log.hpp"
 #include "Settings.hpp"
 
-// Error codes
-#define LEXER_FAIL      -1
-#define PARSER_FAIL     -2
-
 // Input configuration
 #define FILE_INPUT      0
 #define MANUAL_INPUT    1
@@ -26,7 +22,7 @@ int main() {
     success = lexer.tokenize(tokens);
     if (!success) {
         Log::instance().dump();
-        return LEXER_FAIL;
+        return -1;
     }
 
     lexer.printTokens(tokens, Settings::Text::right_just);
@@ -35,7 +31,7 @@ int main() {
     success = parser.generateAST();
     if (!success) {
         Log::instance().dump();
-        return PARSER_FAIL;
+        return -1;
     }
 
     parser.printAST();

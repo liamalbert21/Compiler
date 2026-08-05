@@ -11,8 +11,26 @@ namespace fs = std::filesystem;
 
 template <>
 struct Error<Lexer> {
-    static std::string InvalidCharacter(const Lexer& lexer);
-    static std::string EmptyInput(const Lexer& lexer);
+    static std::string InvalidCharacter(const Lexer& lexer) {
+        const auto position{ lexer.m_current - lexer.m_content.begin() };
+        std::ostringstream message{};
+        message << "ERROR: Invalid character at position " << position << "!\n";
+
+        // Need -1 becuase of the newline
+        std::size_t width{ message.str().length() - 1 };
+
+        message << std::string(width, '-') << '\n'
+                << lexer.m_content << '\n'
+                << std::setw(position + 1) << "^\n"
+                << std::setw(position + 1) << "|\n"
+                << std::string(width, '-');
+
+        return message.str();
+    }
+    
+    static std::string EmptyInput(const Lexer& lexer) {
+        return "ERROR: Empty input!";
+    }
 };
 
 void Lexer::initPositionalMembers() {
@@ -30,8 +48,9 @@ void Lexer::initPositionalMembers() {
  * @note  Moving content during member initialization permits both move and copy
  *        construction with one string overload and optimized efficientcy. Either
  *        pass an rvalue and invoke the move constructor for content or pass an
- *        lvalue and perform copy construction on content. In either case, m_content
- *        is initialized via move construction. 
+ *        lvalue and perform copy construction on content.
+ *
+ *        In either case, m_content is initialized via move construction. 
  *
  * @param content 
  */
@@ -76,7 +95,6 @@ bool Lexer::tokenize(std::vector<Token>& tokens) {
 
 void Lexer::printTokens(const std::vector<Token>& tokens, std::size_t right_just) const {
     if (tokens.empty()) {
-        
         return;
     }
 
@@ -224,25 +242,4 @@ void Lexer::prepareNextToken() {
 
 bool Lexer::isEOF() const {
     return m_current == m_content.end();
-}
-
-std::string Error<Lexer>::InvalidCharacter(const Lexer& lexer) {
-    const auto position{ lexer.m_current - lexer.m_content.begin() };
-    std::ostringstream message{};
-    message << "ERROR: Invalid character at position " << position << "!\n";
-
-    // Need -1 becuase of the newline
-    std::size_t width{ message.str().length() - 1 };
-
-    message << std::string(width, '-') << '\n'
-            << lexer.m_content << '\n'
-            << std::setw(position + 1) << "^\n"
-            << std::setw(position + 1) << "|\n"
-            << std::string(width, '-');
-
-    return message.str();
-}
-
-std::string Error<Lexer>::EmptyInput(const Lexer& lexer) {
-    return "ERROR: Empty input!";
 }

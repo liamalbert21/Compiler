@@ -8,8 +8,19 @@
 
 template <>
 struct Error<Parser> {
-    static std::string ExpectedExpression(const Parser& parser, Token::Type type);
-    static std::string EmptyInput();
+    static std::string ExpectedExpression(const Parser& parser, Token::Type type) {
+        std::ostringstream message{};
+        message << "ERROR: Expected expression before/after " << Token::ToString::Type(type) << '!';
+
+        // Indicate where the invalid expresssion is (similar
+        // to how you handled bad characters in the Lexer)
+
+        return message.str();
+    }
+    
+    static std::string EmptyInput() {
+        return "ERROR: Empty input!";
+    }
 };
 
 Parser::Parser(std::vector<Token> tokens) :
@@ -17,8 +28,10 @@ Parser::Parser(std::vector<Token> tokens) :
         if (!m_tokens.size()) {
             Log::instance().error(Error<Parser>::EmptyInput());
         }
+        else {
+            m_metadata.current = m_tokens.begin();
+        }
         assert(m_tokens.size() > 0);
-        m_current = m_tokens.begin();
     }
 
 bool Parser::generateAST() {
@@ -69,7 +82,13 @@ std::unique_ptr<Expr> Parser::term() {
 
     // Initializes op on every iteration
     while (auto op{ matchTokens(types) }) {
-        expr = std::make_unique<Binary>(std::move(expr), op.value(), factor());
+        std::unique_ptr<Expr> right{ factor() };
+        if (!right) {
+            Log::instance().error(Error<Parser>::ExpectedExpression(*this, op.value().type));
+            m_state = State::FAIL;
+        }
+
+        expr = std::make_unique<Binary>(std::move(expr), op.value(), std::move(right));
     }
 
     return expr;
@@ -77,10 +96,16 @@ std::unique_ptr<Expr> Parser::term() {
 
 std::unique_ptr<Expr> Parser::factor() {
     static constexpr std::initializer_list<Token::Type> types{ Token::Type::STAR, Token::Type::SLASH };
-    std::unique_ptr<Expr> expr{ unary{}.right(*this) };
+    std::unique_ptr<Expr> expr{ unary::right(*this) };
     
     while (auto op{ matchTokens(types) }) {
-        expr = std::make_unique<Binary>(std::move(expr), op.value(), unary{}.right(*this));
+        std::unique_ptr<Expr> right{ unary::right(*this) };
+        if (!right) {
+            Log::instance().error(Error<Parser>::ExpectedExpression(*this, op.value().type));
+            m_state = State::FAIL;
+        }
+
+        expr = std::make_unique<Binary>(std::move(expr), op.value(), std::move(right));
     }
 
     return expr;
@@ -92,8 +117,7 @@ std::unique_ptr<Expr> Parser::unary::right(Parser& parser) {
     // Because these operators are right-associative, they requrire that we find the
     // operand AFTER the operator.
     if (auto op{ parser.matchTokens(types) }) {
-        std::unique_ptr<Expr> expr{ unary{}.left(parser) };
-
+        std::unique_ptr<Expr> expr{ unary::left(parser) };
         if (!expr) {
             Log::instance().error(Error<Parser>::ExpectedExpression(parser, op.value().type));
             parser.m_state = State::FAIL;
@@ -102,7 +126,7 @@ std::unique_ptr<Expr> Parser::unary::right(Parser& parser) {
         return std::make_unique<Unary>(op.value(), std::move(expr));
     }
 
-    return unary{}.left(parser);
+    return unary::left(parser);
 }
 
 std::unique_ptr<Expr> Parser::unary::left(Parser& parser) {
@@ -117,6 +141,7 @@ std::unique_ptr<Expr> Parser::unary::left(Parser& parser) {
             Log::instance().error(Error<Parser>::ExpectedExpression(parser, op.value().type));
             parser.m_state = State::FAIL;
         }
+
         expr = std::make_unique<Unary>(op.value(), std::move(expr));
     }
 
@@ -141,39 +166,25 @@ std::unique_ptr<Expr> Parser::primary() {
 }
 
 void Parser::advance() {
-    ++m_current;
+    ++m_metadata.current;
 }
 
 Token Parser::extract() {
-    return *(m_current++);
+    return *(m_metadata.current++);
 }
 
 void Parser::extract(Token& token) {
-    token = *(m_current++);
+    token = *(m_metadata.current++);
 }
 
 Token Parser::peek() const {
-    return *m_current;
+    return *m_metadata.current;
 }
 
 void Parser::peek(Token& token) const {
-    token = *m_current;
+    token = *m_metadata.current;
 }
 
 bool Parser::isEOF() const {
-    return m_current == m_tokens.end();
-}
-
-std::string Error<Parser>::ExpectedExpression(const Parser& parser, Token::Type type) {
-    std::ostringstream message{};
-    message << "ERROR: Expected expression before/after " << Token::ToString::Type(type) << '!';
-
-    // Indicate where the invalid expresssion is (similar
-    // to how you handled bad characters in the Lexer)
-
-    return message.str();
-}
-
-std::string Error<Parser>::EmptyInput() {
-    return "ERROR: Empty input!";
+    return m_metadata.current == m_tokens.end();
 }
