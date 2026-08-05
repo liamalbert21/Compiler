@@ -4,30 +4,38 @@
 #include <cassert>
 #include <algorithm>
 #include <iostream>
+#include <sstream>
 
 template <>
 struct Error<Parser> {
     static std::string ExpectedExpression(const Parser& parser, Token::Type type);
+    static std::string EmptyInput();
 };
 
 Parser::Parser(std::vector<Token> tokens) :
-    m_fail_state{ true }, m_tokens{ std::move(tokens) } {
+    m_state{ State::INIT }, m_tokens{ std::move(tokens) } {
+        if (!m_tokens.size()) {
+            Log::instance().error(Error<Parser>::EmptyInput());
+        }
         assert(m_tokens.size() > 0);
         m_current = m_tokens.begin();
     }
 
-void Parser::generateAST() {
-    m_fail_state = false;
+bool Parser::generateAST() {
+    // Assume "expression" will produce a valid AST
+    m_state = State::OKAY;
     m_ast = expression();
     
     if (!isEOF()) {
         // Eventually, be more descriptive. Say something like: "ERROR: A group is closed when it never began!"
         throw std::runtime_error("ERROR: Invalid syntax!");
     }
+
+    return m_state == State::OKAY;
 }
 
 void Parser::printAST() const {
-    if (m_fail_state) {
+    if (m_state != State::OKAY) {
         return;
     }
 
@@ -59,9 +67,9 @@ std::unique_ptr<Expr> Parser::term() {
     static constexpr std::initializer_list<Token::Type> types{ Token::Type::PLUS, Token::Type::MINUS };
     std::unique_ptr<Expr> expr{ factor() };
 
+    // Initializes op on every iteration
     while (auto op{ matchTokens(types) }) {
         expr = std::make_unique<Binary>(std::move(expr), op.value(), factor());
-        op = matchTokens(types);
     }
 
     return expr;
@@ -73,7 +81,6 @@ std::unique_ptr<Expr> Parser::factor() {
     
     while (auto op{ matchTokens(types) }) {
         expr = std::make_unique<Binary>(std::move(expr), op.value(), unary{}.right(*this));
-        op = matchTokens(types);
     }
 
     return expr;
@@ -85,7 +92,14 @@ std::unique_ptr<Expr> Parser::unary::right(Parser& parser) {
     // Because these operators are right-associative, they requrire that we find the
     // operand AFTER the operator.
     if (auto op{ parser.matchTokens(types) }) {
-        return std::make_unique<Unary>(op.value(), unary{}.left(parser));
+        std::unique_ptr<Expr> expr{ unary{}.left(parser) };
+
+        if (!expr) {
+            Log::instance().error(Error<Parser>::ExpectedExpression(parser, op.value().type));
+            parser.m_state = State::FAIL;
+        }
+
+        return std::make_unique<Unary>(op.value(), std::move(expr));
     }
 
     return unary{}.left(parser);
@@ -101,11 +115,9 @@ std::unique_ptr<Expr> Parser::unary::left(Parser& parser) {
     if (auto op{ parser.matchTokens(types) }) {
         if (!expr) {
             Log::instance().error(Error<Parser>::ExpectedExpression(parser, op.value().type));
-            parser.m_fail_state = true;
+            parser.m_state = State::FAIL;
         }
-        else {
-            expr = std::make_unique<Unary>(op.value(), std::move(expr));
-        }
+        expr = std::make_unique<Unary>(op.value(), std::move(expr));
     }
 
     return expr;
@@ -153,5 +165,15 @@ bool Parser::isEOF() const {
 }
 
 std::string Error<Parser>::ExpectedExpression(const Parser& parser, Token::Type type) {
-    return "ERROR: Expected expression before/after " + Token::ToString::Type(type);
+    std::ostringstream message{};
+    message << "ERROR: Expected expression before/after " << Token::ToString::Type(type) << '!';
+
+    // Indicate where the invalid expresssion is (similar
+    // to how you handled bad characters in the Lexer)
+
+    return message.str();
+}
+
+std::string Error<Parser>::EmptyInput() {
+    return "ERROR: Empty input!";
 }

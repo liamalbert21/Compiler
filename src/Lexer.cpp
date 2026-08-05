@@ -8,7 +8,6 @@
 #include <cassert>
 
 namespace fs = std::filesystem;
-using ll = long long;
 
 template <>
 struct Error<Lexer> {
@@ -16,17 +15,41 @@ struct Error<Lexer> {
     static std::string EmptyInput(const Lexer& lexer);
 };
 
-Lexer::Lexer(const fs::path& input) {
-    std::ostringstream oss{};
-    oss << std::ifstream{ input }.rdbuf();
-    m_content = oss.str();
-
-    assert(m_content.length() > 0);
+void Lexer::initPositionalMembers() {
+    if (!m_content.length()) {
+        Log::instance().error(Error<Lexer>::EmptyInput(*this));
+        m_state = State::FAIL;
+    }
     m_start = m_content.begin();
     m_current = m_content.begin();
 }
 
-std::vector<Token> Lexer::tokenize() {
+/**
+ * @brief Construct a new Lexer:: Lexer object
+ * 
+ * @note  Moving content during member initialization permits both move and copy
+ *        construction with one string overload and optimized efficientcy. Either
+ *        pass an rvalue and invoke the move constructor for content or pass an
+ *        lvalue and perform copy construction on content. In either case, m_content
+ *        is initialized via move construction. 
+ *
+ * @param content 
+ */
+Lexer::Lexer(std::string content) :
+    m_state{ State::INIT }, m_content{ std::move(content) } {
+        initPositionalMembers();
+    }
+
+Lexer::Lexer(const fs::path& input) :
+    m_state{ State::INIT } {
+        std::ostringstream oss{};
+        oss << std::ifstream{ input }.rdbuf();
+        m_content = oss.str();
+
+        initPositionalMembers();
+    }
+
+std::pair<std::vector<Token>, bool> Lexer::tokenize() {
     std::vector<Token> tokens;
 
     // "token" will be deemed false if its type is invalid
@@ -36,22 +59,24 @@ std::vector<Token> Lexer::tokenize() {
             tokens.push_back(token);
         }
         if (isEOF()) {
-            return tokens;
+            return { tokens, true };
         }
     }
 
     Log::instance().error(Error<Lexer>::InvalidCharacter(*this));
     tokens.clear();
-    return tokens;
+    return { tokens, false };
 }
 
-void Lexer::tokenize(std::vector<Token>& tokens) {
-    tokens = tokenize();
+bool Lexer::tokenize(std::vector<Token>& tokens) {
+    auto result{ tokenize() };
+    tokens = result.first;
+    return result.second;
 }
 
 void Lexer::printTokens(const std::vector<Token>& tokens, std::size_t right_just) const {
     if (tokens.empty()) {
-        Log::instance().error(Error<Lexer>::EmptyInput(*this));
+        
         return;
     }
 
@@ -60,7 +85,7 @@ void Lexer::printTokens(const std::vector<Token>& tokens, std::size_t right_just
     }
 }
 
-// I originally wanted to handle whitespace here via recursion. The solution looked extremely clean but
+// I originally wanted to handle whitespace here via recursion. The solution looked quite clean but
 // surely would have caused stack overflow when provided inputs with many contiguous whitespace characters.
 Token Lexer::getToken() {
     Token target{};
@@ -202,22 +227,22 @@ bool Lexer::isEOF() const {
 }
 
 std::string Error<Lexer>::InvalidCharacter(const Lexer& lexer) {
-    const ll position{ lexer.m_current - lexer.m_content.begin() };
+    const auto position{ lexer.m_current - lexer.m_content.begin() };
     std::ostringstream message{};
-    message << "ERROR: Invalid character at position " << position << '\n';
+    message << "ERROR: Invalid character at position " << position << "!\n";
 
     // Need -1 becuase of the newline
     std::size_t width{ message.str().length() - 1 };
 
-    message << std::string(width, '-')    << '\n'
-            << lexer.m_content                 << '\n'
-            << std::setw(position + 1)      << "^\n"
-            << std::setw(position + 1)      << "|\n"
+    message << std::string(width, '-') << '\n'
+            << lexer.m_content << '\n'
+            << std::setw(position + 1) << "^\n"
+            << std::setw(position + 1) << "|\n"
             << std::string(width, '-');
 
     return message.str();
 }
 
 std::string Error<Lexer>::EmptyInput(const Lexer& lexer) {
-    return "ERROR: Token data has yet to be acquired!";
+    return "ERROR: Empty input!";
 }

@@ -47,7 +47,6 @@ public:
     // I originally did not have this destructor. The compiler was calling delete on
     // 'Expr', but it is abstract and did not have a virtual destructor (runtime
     // polymorphism), so an error was thrown to avoid UB by inappropriately modifying memory.
-    //
     virtual ~Expr() = default;
     virtual void accept(const Visitor& visitor) = 0;
 };

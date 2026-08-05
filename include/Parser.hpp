@@ -1,18 +1,19 @@
 #pragma once
 
+#include "Subsystem.hpp"
 #include "Error.hpp"
 #include "Expression.hpp"
 
 #include <vector>
 #include <optional>
 
-class Parser {
+class Parser : private Subsystem {
     friend struct Error<Parser>;
 
 public:
     Parser(std::vector<Token> tokens);
 
-    void generateAST();
+    bool generateAST();
     void printAST() const;
 
 private:
@@ -37,7 +38,7 @@ private:
     void  peek(Token& token) const;
     bool  isEOF() const;
 
-    bool m_fail_state{};
+    State m_state{};
     std::vector<Token> m_tokens{};
     std::vector<Token>::const_iterator m_current{};
     std::unique_ptr<Expr> m_ast{};
