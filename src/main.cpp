@@ -4,18 +4,19 @@
 #include "Settings.hpp"
 
 // Input configuration
-#define FILE_INPUT      0
-#define MANUAL_INPUT    1
-#define INPUT_METHOD    MANUAL_INPUT
+#define FILE_INPUT          0
+#define MANUAL_INPUT        1
+#define MANUAL_INPUT_STR    "This input will fail :)"
+#define INPUT_METHOD        MANUAL_INPUT
 
 int main() {
     std::vector<Token> tokens{};
     bool success{};
 
 #if INPUT_METHOD == FILE_INPUT
-    Lexer lexer{ Settings::File::root_dir / Settings::File::input };
-#elif INPUT_METHOD == MANUAL_INPUT
-    std::string input{ "1 + 2 + 3 + 4" };
+    Lexer lexer{ ROOT_DIR / Settings::File::input };
+#elif INPUT_METHOD == MANUAL_INPUT 
+    std::string input{ MANUAL_INPUT_STR };
     Lexer lexer{ std::move(input) };
 #endif
 

@@ -1,13 +1,12 @@
 #pragma once
 
-#include "Subsystem.hpp"
 #include "Error.hpp"
 #include "Token.hpp"
 
 #include <filesystem>
 #include <vector>
 
-class Lexer : private Subsystem {
+class Lexer : public Pipeline {
     friend struct Error<Lexer>;
 
 public:
@@ -24,12 +23,13 @@ private:
         std::string value_str{};
     };
 
-    void initPositionalMembers();
+    void initConditionalMembers();
 
     Token getToken();
     Token generateNumericToken(Token::Type init_guess);
-    Token::Type guessTokenType(char ch) const;
     Number getNumericTokenData(Token::Type final_guess);
+
+    Token::Type guessTokenType(char ch) const;
 
     void advance();
     char extract();
@@ -42,4 +42,9 @@ private:
     State m_state{};
     std::string m_content{};
     std::string::const_iterator m_start{}, m_current{};
+};
+
+template <>
+struct Error<Lexer> {
+    static std::string InvalidCharacter(const Lexer& lexer);
 };

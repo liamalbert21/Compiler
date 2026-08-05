@@ -9,46 +9,37 @@
 
 namespace fs = std::filesystem;
 
-template <>
-struct Error<Lexer> {
-    static std::string InvalidCharacter(const Lexer& lexer) {
-        const auto position{ lexer.m_current - lexer.m_content.begin() };
-        std::ostringstream message{};
-        message << "ERROR: Invalid character at position " << position << "!\n";
+std::string Error<Lexer>::InvalidCharacter(const Lexer& lexer) {
+    const auto position{ lexer.m_current - lexer.m_content.begin() };
+    std::ostringstream message{};
+    message << "\nERROR: Invalid character at position " << position << "!\n";
 
-        // Need -1 becuase of the newline
-        std::size_t width{ message.str().length() - 1 };
+    // Need -2 becuase of the newlines
+    std::size_t width{ message.str().length() - 2 };
 
-        message << std::string(width, '-') << '\n'
-                << lexer.m_content << '\n'
-                << std::setw(position + 1) << "^\n"
-                << std::setw(position + 1) << "|\n"
-                << std::string(width, '-');
+    message << std::string(width, '-') << '\n'
+            << lexer.m_content << '\n'
+            << std::setw(position + 1) << "^\n"
+            << std::setw(position + 1) << "|\n"
+            << std::string(width, '-');
 
-        return message.str();
+    return message.str();
+}
+
+void Lexer::initConditionalMembers() {
+    if (m_content.length()) {
+        m_start = m_content.begin();
+        m_current = m_content.begin();
     }
-    
-    static std::string EmptyInput(const Lexer& lexer) {
-        return "ERROR: Empty input!";
-    }
-};
-
-void Lexer::initPositionalMembers() {
-    if (!m_content.length()) {
-        Log::instance().error(Error<Lexer>::EmptyInput(*this));
-        m_state = State::FAIL;
-    }
-    m_start = m_content.begin();
-    m_current = m_content.begin();
 }
 
 /**
  * @brief Construct a new Lexer:: Lexer object
  * 
  * @note  Moving content during member initialization permits both move and copy
- *        construction with one string overload and optimized efficientcy. Either
- *        pass an rvalue and invoke the move constructor for content or pass an
- *        lvalue and perform copy construction on content.
+ *        construction with one string overload and optimized efficientcy.
+ *        Either pass an rvalue and invoke the move constructor for content or
+ *        pass an lvalue and perform copy construction on content.
  *
  *        In either case, m_content is initialized via move construction. 
  *
@@ -56,7 +47,7 @@ void Lexer::initPositionalMembers() {
  */
 Lexer::Lexer(std::string content) :
     m_state{ State::INIT }, m_content{ std::move(content) } {
-        initPositionalMembers();
+        initConditionalMembers();
     }
 
 Lexer::Lexer(const fs::path& input) :
@@ -65,7 +56,7 @@ Lexer::Lexer(const fs::path& input) :
         oss << std::ifstream{ input }.rdbuf();
         m_content = oss.str();
 
-        initPositionalMembers();
+        initConditionalMembers();
     }
 
 std::pair<std::vector<Token>, bool> Lexer::tokenize() {
@@ -103,8 +94,9 @@ void Lexer::printTokens(const std::vector<Token>& tokens, std::size_t right_just
     }
 }
 
-// I originally wanted to handle whitespace here via recursion. The solution looked quite clean but
-// surely would have caused stack overflow when provided inputs with many contiguous whitespace characters.
+// I originally wanted to handle whitespace here via recursion. The solution
+// looked clean as well but surely would have caused stack overflow when
+// provided inputs with many contiguous whitespace characters.
 Token Lexer::getToken() {
     Token target{};
     const char first{ extract() };
@@ -145,6 +137,30 @@ Token Lexer::generateNumericToken(Token::Type init_guess) {
     return { data.type, literal, data.value_str };
 }
 
+Lexer::Number Lexer::getNumericTokenData(Token::Type final_guess) {
+    Token::Type type{ final_guess };
+    
+    while (!isEOF()) {
+        Token::Type partial_type{ guessTokenType(peek()) };
+
+        if (partial_type == Token::Type::__SEPARATOR) {
+            // i.e. a separator was already encountered in the target token
+            if (type == Token::Type::DOUBLE) {
+                return { Token::Type::INVALID, "" };
+            }
+            type = Token::Type::DOUBLE;
+        }
+        else if (partial_type != Token::Type::__DIGIT) {
+            break;
+        }
+
+        advance();
+    }
+
+    return { type, std::string{ m_start, m_current } };
+}
+
+
 Token::Type Lexer::guessTokenType(char ch) const {
     using enum Token::Type;
 
@@ -176,6 +192,7 @@ Token::Type Lexer::guessTokenType(char ch) const {
             return FACTORIAL;
         
         // Whitespace (will eventually ignore)
+        // \n and \r may later be changed if I support multiple lines
         case ' ':
             return __WHITESPACE;
         case '\n':
@@ -191,29 +208,6 @@ Token::Type Lexer::guessTokenType(char ch) const {
     }
 
     return INVALID;
-}
-
-Lexer::Number Lexer::getNumericTokenData(Token::Type final_guess) {
-    Token::Type type{ final_guess };
-    
-    while (!isEOF()) {
-        Token::Type partial_type{ guessTokenType(peek()) };
-
-        if (partial_type == Token::Type::__SEPARATOR) {
-            // i.e. a separator was already encountered in the target token
-            if (type == Token::Type::DOUBLE) {
-                return { Token::Type::INVALID, "" };
-            }
-            type = Token::Type::DOUBLE;
-        }
-        else if (partial_type != Token::Type::__DIGIT) {
-            break;
-        }
-
-        advance();
-    }
-
-    return { type, std::string{ m_start, m_current } };
 }
 
 void Lexer::advance() {

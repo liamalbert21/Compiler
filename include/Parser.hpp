@@ -1,13 +1,12 @@
 #pragma once
 
-#include "Subsystem.hpp"
 #include "Error.hpp"
 #include "Expression.hpp"
 
 #include <vector>
 #include <optional>
 
-class Parser : private Subsystem {
+class Parser : private Pipeline {
     friend struct Error<Parser>;
 
 public:
@@ -17,12 +16,9 @@ public:
     void printAST() const;
 
 private:
-    struct MetaIn {
-        std::size_t input_length{};
-        std::vector<Token>::const_iterator current{};
-    };
-
-    std::optional<Token>  matchTokens(std::initializer_list<Token::Type> types);
+    std::optional<Token> matchTokens(std::initializer_list<Token::Type> types);
+    void handleMissingOperand(Token::Type op, Expr::OperandSide side);
+    Expr::OperandSide getMissingOperandSide(std::unique_ptr<Expr>& left, std::unique_ptr<Expr>& right);
 
     std::unique_ptr<Expr> expression();
     std::unique_ptr<Expr> term();
@@ -43,7 +39,12 @@ private:
     bool  isEOF() const;
 
     State m_state{};
-    MetaIn m_metadata{};
     std::vector<Token> m_tokens{};
+    std::vector<Token>::const_iterator m_current{};
     std::unique_ptr<Expr> m_ast{};
+};
+
+template <>
+struct Error<Parser> {
+    static std::string ExpectedExpression(const Parser& parser, Token::Type type, Expr::OperandSide side);
 };

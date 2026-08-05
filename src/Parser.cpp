@@ -6,32 +6,35 @@
 #include <iostream>
 #include <sstream>
 
-template <>
-struct Error<Parser> {
-    static std::string ExpectedExpression(const Parser& parser, Token::Type type) {
-        std::ostringstream message{};
-        message << "ERROR: Expected expression before/after " << Token::ToString::Type(type) << '!';
+using TokenTypes = std::initializer_list<Token::Type>;
 
-        // Indicate where the invalid expresssion is (similar
-        // to how you handled bad characters in the Lexer)
+std::string Error<Parser>::ExpectedExpression(const Parser& parser, Token::Type type, Expr::OperandSide side) {
+    std::ostringstream message{};
+    message << "\nERROR: Expected expression "
+            << (
+                    side == Expr::OperandSide::LEFT  ? "before " : 
+                    side == Expr::OperandSide::RIGHT ? "after "  : "before/after "
+                )
+            << Token::ToString::Type(type) << "!\n";
 
-        return message.str();
-    }
-    
-    static std::string EmptyInput() {
-        return "ERROR: Empty input!";
-    }
-};
+    // Need -2 because of the newlines
+    std::size_t width{ message.str().length() - 2 };
+    message << std::string(width, '-') << '\n' << "* At token instance: "
+            << std::count_if(
+                parser.m_tokens.begin(),
+                parser.m_current,
+                [=](const Token& token) { return token.type == type; }
+                )
+            << '\n' << std::string(width, '-');
+
+    return message.str();
+}
 
 Parser::Parser(std::vector<Token> tokens) :
     m_state{ State::INIT }, m_tokens{ std::move(tokens) } {
-        if (!m_tokens.size()) {
-            Log::instance().error(Error<Parser>::EmptyInput());
+        if (m_tokens.size()) {
+            m_current = m_tokens.begin();
         }
-        else {
-            m_metadata.current = m_tokens.begin();
-        }
-        assert(m_tokens.size() > 0);
     }
 
 bool Parser::generateAST() {
@@ -39,9 +42,9 @@ bool Parser::generateAST() {
     m_state = State::OKAY;
     m_ast = expression();
     
+    // Should never throw
     if (!isEOF()) {
-        // Eventually, be more descriptive. Say something like: "ERROR: A group is closed when it never began!"
-        throw std::runtime_error("ERROR: Invalid syntax!");
+        throw std::runtime_error("CODE FAULT: A complete AST was produced without examining all tokens");
     }
 
     return m_state == State::OKAY;
@@ -57,7 +60,7 @@ void Parser::printAST() const {
     std::cout << std::flush;
 }
 
-std::optional<Token> Parser::matchTokens(std::initializer_list<Token::Type> types) {    
+std::optional<Token> Parser::matchTokens(TokenTypes types) {    
     if (isEOF()) {
         return std::nullopt;
     }
@@ -72,20 +75,32 @@ std::optional<Token> Parser::matchTokens(std::initializer_list<Token::Type> type
     return target;
 }
 
+void Parser::handleMissingOperand(Token::Type op, Expr::OperandSide side) {
+    Log::instance().error(Error<Parser>::ExpectedExpression(*this, op, side));
+    m_state = State::FAIL;
+}
+
+Expr::OperandSide Parser::getMissingOperandSide(std::unique_ptr<Expr>& left, std::unique_ptr<Expr>& right) {
+    return !left &&  right ? Expr::OperandSide::LEFT  :
+            left && !right ? Expr::OperandSide::RIGHT :
+                             Expr::OperandSide::UNKNOWN;
+}
+
 std::unique_ptr<Expr> Parser::expression() {
     return term();
 }
 
 std::unique_ptr<Expr> Parser::term() {
-    static constexpr std::initializer_list<Token::Type> types{ Token::Type::PLUS, Token::Type::MINUS };
+    static constexpr TokenTypes types{ Token::Type::PLUS, Token::Type::MINUS };
+    
     std::unique_ptr<Expr> expr{ factor() };
 
     // Initializes op on every iteration
     while (auto op{ matchTokens(types) }) {
         std::unique_ptr<Expr> right{ factor() };
-        if (!right) {
-            Log::instance().error(Error<Parser>::ExpectedExpression(*this, op.value().type));
-            m_state = State::FAIL;
+
+        if (!expr || !right) {
+            handleMissingOperand(op.value().type, getMissingOperandSide(expr, right));
         }
 
         expr = std::make_unique<Binary>(std::move(expr), op.value(), std::move(right));
@@ -95,14 +110,15 @@ std::unique_ptr<Expr> Parser::term() {
 }
 
 std::unique_ptr<Expr> Parser::factor() {
-    static constexpr std::initializer_list<Token::Type> types{ Token::Type::STAR, Token::Type::SLASH };
+    static constexpr TokenTypes types{ Token::Type::STAR, Token::Type::SLASH };
+
     std::unique_ptr<Expr> expr{ unary::right(*this) };
     
     while (auto op{ matchTokens(types) }) {
         std::unique_ptr<Expr> right{ unary::right(*this) };
-        if (!right) {
-            Log::instance().error(Error<Parser>::ExpectedExpression(*this, op.value().type));
-            m_state = State::FAIL;
+
+        if (!expr || !right) {
+            handleMissingOperand(op.value().type, getMissingOperandSide(expr, right));
         }
 
         expr = std::make_unique<Binary>(std::move(expr), op.value(), std::move(right));
@@ -112,15 +128,14 @@ std::unique_ptr<Expr> Parser::factor() {
 }
 
 std::unique_ptr<Expr> Parser::unary::right(Parser& parser) {
-    static constexpr std::initializer_list<Token::Type> types{ Token::Type::MINUS };
+    static constexpr TokenTypes types{ Token::Type::MINUS };
 
-    // Because these operators are right-associative, they requrire that we find the
-    // operand AFTER the operator.
+    // Because these operators are right-associative, they requrire that we find
+    // the operand AFTER the operator.
     if (auto op{ parser.matchTokens(types) }) {
         std::unique_ptr<Expr> expr{ unary::left(parser) };
         if (!expr) {
-            Log::instance().error(Error<Parser>::ExpectedExpression(parser, op.value().type));
-            parser.m_state = State::FAIL;
+            parser.handleMissingOperand(op.value().type, Expr::OperandSide::RIGHT);
         }
 
         return std::make_unique<Unary>(op.value(), std::move(expr));
@@ -130,16 +145,15 @@ std::unique_ptr<Expr> Parser::unary::right(Parser& parser) {
 }
 
 std::unique_ptr<Expr> Parser::unary::left(Parser& parser) {
-    static constexpr std::initializer_list<Token::Type> types{ Token::Type::FACTORIAL };
+    static constexpr TokenTypes types{ Token::Type::FACTORIAL };
     
-    // Because these operators are left-associative, they require that we find the
-    // operand BEFORE the operator.
+    // Because these operators are left-associative, they require that we find 
+    // the operand BEFORE the operator.
     std::unique_ptr<Expr> expr{ parser.primary() };
 
     if (auto op{ parser.matchTokens(types) }) {
         if (!expr) {
-            Log::instance().error(Error<Parser>::ExpectedExpression(parser, op.value().type));
-            parser.m_state = State::FAIL;
+            parser.handleMissingOperand(op.value().type, Expr::OperandSide::LEFT);
         }
 
         expr = std::make_unique<Unary>(op.value(), std::move(expr));
@@ -149,42 +163,48 @@ std::unique_ptr<Expr> Parser::unary::left(Parser& parser) {
 }
 
 std::unique_ptr<Expr> Parser::primary() {
+    static constexpr TokenTypes numeric_types{ Token::Type::INT, Token::Type::DOUBLE };
+    static constexpr TokenTypes grouping_types{ Token::Type::LEFT_PAREN, Token::Type::LEFT_BRACK };
+
     std::unique_ptr<Expr> expr{ nullptr };
 
-    if (auto num{ matchTokens({ Token::Type::INT, Token::Type::DOUBLE }) }) {
+    if (auto num{ matchTokens(numeric_types) }) {
         expr = std::make_unique<Primary>(num.value());
     }
-    else if (auto grouping{ matchTokens({ Token::Type::LEFT_PAREN, Token::Type::LEFT_BRACK }) }) {
+    else if (auto grouping{ matchTokens(grouping_types) }) {
         expr = std::make_unique<Grouping>(expression());
 
         // The next token MUST correspond to the group type
-        Token::Type expected{ grouping.value().type == Token::Type::LEFT_PAREN ? Token::Type::RIGHT_PAREN : Token::Type::RIGHT_BRACK };
-        assert(matchTokens({ expected }) && "ERROR: A group in the expression does not close!");
+        Token::Type expected{
+            grouping.value().type == Token::Type::LEFT_PAREN ? Token::Type::RIGHT_PAREN : Token::Type::RIGHT_BRACK
+        };
+
+        assert(matchTokens({ expected }) && "Critical error: A group in the expression does not close!");
     }
 
     return expr;
 }
 
 void Parser::advance() {
-    ++m_metadata.current;
+    ++m_current;
 }
 
 Token Parser::extract() {
-    return *(m_metadata.current++);
+    return *(m_current++);
 }
 
 void Parser::extract(Token& token) {
-    token = *(m_metadata.current++);
+    token = *(m_current++);
 }
 
 Token Parser::peek() const {
-    return *m_metadata.current;
+    return *m_current;
 }
 
 void Parser::peek(Token& token) const {
-    token = *m_metadata.current;
+    token = *m_current;
 }
 
 bool Parser::isEOF() const {
-    return m_metadata.current == m_tokens.end();
+    return m_current == m_tokens.end();
 }

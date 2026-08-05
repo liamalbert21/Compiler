@@ -1,4 +1,5 @@
 #include "Log.hpp"
+#include "Settings.hpp"
 
 #include <memory>
 
@@ -9,7 +10,7 @@ Log& Log::instance() {
 
 bool Log::error(std::string&& message) {
     // Checks whether there's another pair with the same key
-    if (m_unique_messages.emplace(message).second) {
+    if (m_unique_messages.size() <= Settings::Limits::max_errors && m_unique_messages.emplace(message).second) {
         m_queue.emplace(std::move(message));
         return true;
     }
