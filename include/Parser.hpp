@@ -1,14 +1,12 @@
 #pragma once
 
-#include "Error.hpp"
+#include "Pipeline.hpp"
 #include "Expression.hpp"
 
 #include <vector>
 #include <optional>
 
 class Parser : private Pipeline {
-    friend struct Error<Parser>;
-
 public:
     Parser(std::vector<Token> tokens);
 
@@ -40,11 +38,6 @@ private:
 
     State m_state{};
     std::vector<Token> m_tokens{};
-    std::vector<Token>::const_iterator m_current{};
+    std::vector<Token>::iterator m_current{};
     std::unique_ptr<Expr> m_ast{};
-};
-
-template <>
-struct Error<Parser> {
-    static std::string ExpectedExpression(const Parser& parser, Token::Type type, Expr::OperandSide side);
 };

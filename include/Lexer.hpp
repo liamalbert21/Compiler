@@ -1,14 +1,12 @@
 #pragma once
 
-#include "Error.hpp"
+#include "Pipeline.hpp"
 #include "Token.hpp"
 
 #include <filesystem>
 #include <vector>
 
-class Lexer : public Pipeline {
-    friend struct Error<Lexer>;
-
+class Lexer : private Pipeline {
 public:
     Lexer(std::string content);
     Lexer(const std::filesystem::path& input);
@@ -41,10 +39,5 @@ private:
 
     State m_state{};
     std::string m_content{};
-    std::string::const_iterator m_start{}, m_current{};
-};
-
-template <>
-struct Error<Lexer> {
-    static std::string InvalidCharacter(const Lexer& lexer);
+    std::string::iterator m_start{}, m_current{};
 };

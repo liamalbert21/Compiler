@@ -10,11 +10,13 @@ public:
     static Log& instance();
     
     bool error(std::string&& message);
-    void dump(std::ostream& os = std::cerr);
+    bool debug(std::string&& message);
+
+    void dump(std::ostream& dos = std::cout, std::ostream& eos = std::cerr);
 
 private:
     Log() = default;
 
     std::unordered_set<std::string> m_unique_messages{};
-    std::queue<std::string> m_queue{};
+    std::queue<std::string> m_errors{}, m_debug{};
 };

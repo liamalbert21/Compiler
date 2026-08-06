@@ -1,30 +1,22 @@
 #include "Lexer.hpp"
 #include "Log.hpp"
+#include "Error.hpp"
 
 #include <iostream>
 #include <fstream>
 #include <sstream>
 #include <iomanip>
 #include <cassert>
+#include <string_view>
+#include <iterator>
 
 namespace fs = std::filesystem;
 
-std::string Error<Lexer>::InvalidCharacter(const Lexer& lexer) {
-    const auto position{ lexer.m_current - lexer.m_content.begin() };
-    std::ostringstream message{};
-    message << "\nERROR: Invalid character at position " << position << "!\n";
-
-    // Need -2 becuase of the newlines
-    std::size_t width{ message.str().length() - 2 };
-
-    message << std::string(width, '-') << '\n'
-            << lexer.m_content << '\n'
-            << std::setw(position + 1) << "^\n"
-            << std::setw(position + 1) << "|\n"
-            << std::string(width, '-');
-
-    return message.str();
-}
+template <>
+class Error<Lexer> {
+public:
+    static std::string InvalidCharacter(std::string_view content, auto where);
+};
 
 void Lexer::initConditionalMembers() {
     if (m_content.length()) {
@@ -73,7 +65,11 @@ std::pair<std::vector<Token>, bool> Lexer::tokenize() {
         }
     }
 
-    Log::instance().error(Error<Lexer>::InvalidCharacter(*this));
+    Log::instance().error(Error<Lexer>::InvalidCharacter(
+        m_content, 
+        std::distance(m_content.begin(), m_current)
+    ));
+
     tokens.clear();
     return { tokens, false };
 }
@@ -236,4 +232,20 @@ void Lexer::prepareNextToken() {
 
 bool Lexer::isEOF() const {
     return m_current == m_content.end();
+}
+
+std::string Error<Lexer>::InvalidCharacter(std::string_view content, auto where) {
+    std::ostringstream message{};
+    message << "\nERROR: Invalid character at position " << where << "!\n";
+
+    // Need -2 becuase of the newlines
+    std::size_t width{ message.str().length() - 2 };
+    
+    message << std::string(width, '-') << '\n'
+            << content << '\n'
+            << std::setw(where + 1) << "^\n"
+            << std::setw(where + 1) << "|\n"
+            << std::string(width, '-');
+
+    return message.str();
 }

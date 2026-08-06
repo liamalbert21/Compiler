@@ -9,30 +9,39 @@ Log& Log::instance() {
 }
 
 bool Log::error(std::string&& message) {
+    bool success{ false };
+    
     // Checks whether there's another pair with the same key
-    if (m_unique_messages.size() <= Settings::Limits::max_errors && m_unique_messages.emplace(message).second) {
-        m_queue.emplace(std::move(message));
-        return true;
+    if (m_errors.size() <= Settings::Limits::max_errors && m_unique_messages.emplace(message).second) {
+        m_errors.emplace(std::move(message));
+        success = true;
     }
 
-    return false;
+    return success;
 }
 
-/**
- * @brief Dumps log contents to the provided stream
- * 
- * @note  My intention is that the log is dumped once per cycle. Developers can
- *        choose the stream to which the output is sent (std::cerr by default)
- *        in case they'd like to save the contents and store/use them elsewhere.
- *
- *        Dumping is extremely efficient (thanks to the queue) in case many
- *        messages have accumulated during the compilation process.
- *
- * @param os 
- */
-void Log::dump(std::ostream& os) {
-    while (!m_queue.empty()) {
-        os << m_queue.front() << '\n';
-        m_queue.pop();
+bool Log::debug(std::string&& message) {
+    bool success{ false };
+
+    if (m_unique_messages.emplace(message).second) {
+        m_debug.emplace(std::move(message));
+        success = true;
+    }
+
+    return success;
+}
+
+void Log::dump(std::ostream& dos, std::ostream& eos) {
+    const bool dump_debug{ !m_errors.empty() };
+
+    while (!m_errors.empty()) {
+        eos << m_errors.front() << '\n';
+        m_errors.pop();
+    }
+
+    // Do not dump debug messages if the pipeline failed to compile the input
+    if (dump_debug) {
+        dos << m_debug.front() << '\n';
+        m_debug.pop();
     }
 }

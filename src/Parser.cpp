@@ -1,5 +1,6 @@
 #include "Parser.hpp"
 #include "Log.hpp"
+#include "Error.hpp"
 
 #include <cassert>
 #include <algorithm>
@@ -8,27 +9,16 @@
 
 using TokenTypes = std::initializer_list<Token::Type>;
 
-std::string Error<Parser>::ExpectedExpression(const Parser& parser, Token::Type type, Expr::OperandSide side) {
-    std::ostringstream message{};
-    message << "\nERROR: Expected expression "
-            << (
-                    side == Expr::OperandSide::LEFT  ? "before " : 
-                    side == Expr::OperandSide::RIGHT ? "after "  : "before/after "
-                )
-            << Token::ToString::Type(type) << "!\n";
-
-    // Need -2 because of the newlines
-    std::size_t width{ message.str().length() - 2 };
-    message << std::string(width, '-') << '\n' << "* At token instance: "
-            << std::count_if(
-                parser.m_tokens.begin(),
-                parser.m_current,
-                [=](const Token& token) { return token.type == type; }
-                )
-            << '\n' << std::string(width, '-');
-
-    return message.str();
-}
+template<>
+class Error<Parser> {
+public:
+    static std::string ExpectedExpression(
+        const std::vector<Token>& token,
+        std::vector<Token>::const_iterator where,
+        Token::Type type,
+        Expr::OperandSide side
+    );
+};
 
 Parser::Parser(std::vector<Token> tokens) :
     m_state{ State::INIT }, m_tokens{ std::move(tokens) } {
@@ -76,7 +66,7 @@ std::optional<Token> Parser::matchTokens(TokenTypes types) {
 }
 
 void Parser::handleMissingOperand(Token::Type op, Expr::OperandSide side) {
-    Log::instance().error(Error<Parser>::ExpectedExpression(*this, op, side));
+    Log::instance().error(Error<Parser>::ExpectedExpression(m_tokens, m_current, op, side));
     m_state = State::FAIL;
 }
 
@@ -207,4 +197,32 @@ void Parser::peek(Token& token) const {
 
 bool Parser::isEOF() const {
     return m_current == m_tokens.end();
+}
+
+std::string Error<Parser>::ExpectedExpression(
+    const std::vector<Token>& content,
+    std::vector<Token>::const_iterator where,
+    Token::Type type,
+    Expr::OperandSide side
+) {
+    std::ostringstream message{};
+    message << "\nERROR: Expected expression "
+            << (
+                    side == Expr::OperandSide::LEFT  ? "before " : 
+                    side == Expr::OperandSide::RIGHT ? "after "  : "before/after "
+                )
+            << Token::ToString::Type(type) << "!\n";
+
+    // Need -2 because of the newlines
+    const std::size_t width{ message.str().length() - 2 };
+
+    message << std::string(width, '-') << '\n' << "* At token instance: "
+            << std::count_if(
+                    content.begin(),
+                    where,
+                    [=](const Token& token) { return token.type == type; }
+                )
+            << '\n' << std::string(width, '-');
+
+    return message.str();
 }

@@ -2,7 +2,7 @@
 
 #include "Pipeline.hpp"
 
-#include <concepts>
+#include <type_traits>
 
 // Explicitly include Error.hpp to implement error functionality via Error<T>
 // Critical errors should be handled by assertions/exceptions
@@ -12,14 +12,10 @@
 
 // Note: The class for which explicit template speciailization is provided must
 // be a Subsystem
-// i.e. "struct Error<NotASubsystem> { ... };" will fail
-
-// Important: If any class were to inherit Pipeline privately with the
-// intention of restricting T::State to its scope, the concept associated with
-// Error<T> would fail
+// i.e. "class Error<NotASubsystem> { ... };" will fail
 
 template <typename T>
-concept Subsystem = std::derived_from<T, Pipeline>;
+concept Subsystem = std::is_base_of_v<Pipeline, T>;
 
 template <Subsystem S>
-struct Error;
+class Error;
