@@ -1,5 +1,12 @@
 #pragma once
 
+#include <functional>
+
+struct Token;
+
+using Content = std::variant<std::string, std::vector<Token>>;
+using Context = std::pair<Content, std::size_t>;
+
 /**
  * @brief Subsystems (pipelines) inherit this class privately to
  *           a) Access a state varaible without having to redefine it or provide
@@ -15,5 +22,16 @@ class Pipeline {
 protected:
     enum class State {
         INIT, OKAY, FAIL
-    };  
+    };
+
+    /**
+     * @brief 
+     * 
+     * @param func 
+     * @param args 
+     */
+    virtual void ErrorWrapper(
+        std::string_view start,
+        std::function<std::string(Context)> func
+    ) = 0;
 };

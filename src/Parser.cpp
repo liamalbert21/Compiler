@@ -1,24 +1,11 @@
 #include "Parser.hpp"
 #include "Log.hpp"
-#include "Error.hpp"
 
 #include <cassert>
 #include <algorithm>
-#include <iostream>
 #include <sstream>
 
 using TokenTypes = std::initializer_list<Token::Type>;
-
-template<>
-class Error<Parser> {
-public:
-    static std::string ExpectedExpression(
-        const std::vector<Token>& token,
-        std::vector<Token>::const_iterator where,
-        Token::Type type,
-        Expr::OperandSide side
-    );
-};
 
 Parser::Parser(std::vector<Token> tokens) :
     m_state{ State::INIT }, m_tokens{ std::move(tokens) } {
@@ -32,9 +19,8 @@ bool Parser::generateAST() {
     m_state = State::OKAY;
     m_ast = expression();
     
-    // Should never throw
     if (!isEOF()) {
-        throw std::runtime_error("CODE FAULT: A complete AST was produced without examining all tokens");
+        Error<Parser>::ExpectedOperand(*this);
     }
 
     return m_state == State::OKAY;
@@ -65,11 +51,6 @@ std::optional<Token> Parser::matchTokens(TokenTypes types) {
     return target;
 }
 
-void Parser::handleMissingOperand(Token::Type op, Expr::OperandSide side) {
-    Log::instance().error(Error<Parser>::ExpectedExpression(m_tokens, m_current, op, side));
-    m_state = State::FAIL;
-}
-
 Expr::OperandSide Parser::getMissingOperandSide(std::unique_ptr<Expr>& left, std::unique_ptr<Expr>& right) {
     return !left &&  right ? Expr::OperandSide::LEFT  :
             left && !right ? Expr::OperandSide::RIGHT :
@@ -90,7 +71,11 @@ std::unique_ptr<Expr> Parser::term() {
         std::unique_ptr<Expr> right{ factor() };
 
         if (!expr || !right) {
-            handleMissingOperand(op.value().type, getMissingOperandSide(expr, right));
+            Error<Parser>::ExpectedExpression(
+                *this,
+                getMissingOperandSide(expr, right),
+                op.value().type
+            );
         }
 
         expr = std::make_unique<Binary>(std::move(expr), op.value(), std::move(right));
@@ -105,10 +90,16 @@ std::unique_ptr<Expr> Parser::factor() {
     std::unique_ptr<Expr> expr{ unary::right(*this) };
     
     while (auto op{ matchTokens(types) }) {
+        // Not assigning an alias to op.value() 
+        
         std::unique_ptr<Expr> right{ unary::right(*this) };
 
         if (!expr || !right) {
-            handleMissingOperand(op.value().type, getMissingOperandSide(expr, right));
+            Error<Parser>::ExpectedExpression(
+                *this,
+                getMissingOperandSide(expr, right),
+                op.value().type
+            );
         }
 
         expr = std::make_unique<Binary>(std::move(expr), op.value(), std::move(right));
@@ -125,7 +116,11 @@ std::unique_ptr<Expr> Parser::unary::right(Parser& parser) {
     if (auto op{ parser.matchTokens(types) }) {
         std::unique_ptr<Expr> expr{ unary::left(parser) };
         if (!expr) {
-            parser.handleMissingOperand(op.value().type, Expr::OperandSide::RIGHT);
+            Error<Parser>::ExpectedExpression(
+                parser,
+                Expr::OperandSide::RIGHT,
+                op.value().type
+            );
         }
 
         return std::make_unique<Unary>(op.value(), std::move(expr));
@@ -143,7 +138,11 @@ std::unique_ptr<Expr> Parser::unary::left(Parser& parser) {
 
     if (auto op{ parser.matchTokens(types) }) {
         if (!expr) {
-            parser.handleMissingOperand(op.value().type, Expr::OperandSide::LEFT);
+            Error<Parser>::ExpectedExpression(
+                parser,
+                Expr::OperandSide::LEFT,
+                op.value().type
+            );
         }
 
         expr = std::make_unique<Unary>(op.value(), std::move(expr));
@@ -199,30 +198,56 @@ bool Parser::isEOF() const {
     return m_current == m_tokens.end();
 }
 
-std::string Error<Parser>::ExpectedExpression(
-    const std::vector<Token>& content,
-    std::vector<Token>::const_iterator where,
-    Token::Type type,
-    Expr::OperandSide side
+void Parser::ErrorWrapper(
+    std::string_view start,
+    std::function<std::string(std::pair<Content, std::size_t>)> func
 ) {
     std::ostringstream message{};
-    message << "\nERROR: Expected expression "
+    const std::size_t width{ start.length() };
+
+    message << '\n' << start << '\n'
+            << std::string(width, '-') << '\n'
+            << func({ m_tokens, static_cast<std::size_t>(m_current - m_tokens.begin()) })
+            << std::string(width, '-');
+
+    Log::instance().error(message.str());
+    m_state = State::FAIL;
+}
+
+void Error<Parser>::ExpectedExpression(Parser& parser, Expr::OperandSide side, Token::Type type) {
+    auto description{ [=](Context data) -> std::string {
+        std::ostringstream oss{};
+        auto start{ std::get<std::vector<Token>>(data.first).begin() };
+
+        oss << "* At token instance: "
+            << std::count_if(
+                    start,
+                    start + data.second,
+                    [=](const Token& token) { return token.type == type; }
+                )
+            << '\n';
+
+        return oss.str();
+    }};
+
+    std::ostringstream message{};
+    message << "Expected expression "
             << (
                     side == Expr::OperandSide::LEFT  ? "before " : 
                     side == Expr::OperandSide::RIGHT ? "after "  : "before/after "
                 )
-            << Token::ToString::Type(type) << "!\n";
+            << Token::ToString::Type(type) << '!';
 
-    // Need -2 because of the newlines
-    const std::size_t width{ message.str().length() - 2 };
+    parser.ErrorWrapper(message.str(), std::function<std::string(Context)>{ description });
+}
 
-    message << std::string(width, '-') << '\n' << "* At token instance: "
-            << std::count_if(
-                    content.begin(),
-                    where,
-                    [=](const Token& token) { return token.type == type; }
-                )
-            << '\n' << std::string(width, '-');
+void Error<Parser>::ExpectedOperand(Parser& parser) {
+    auto description{ [](Context data) -> std::string {
+        std::ostringstream oss{};
+        oss << "Location: Token instance " << data.second + 1 << '\n';
+        return oss.str();
+    }};
 
-    return message.str();
+    std::string message{ "Expected operand!" };
+    parser.ErrorWrapper(message, std::function<std::string(Context)>{ description });
 }

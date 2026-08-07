@@ -4,7 +4,6 @@
 #include "Token.hpp"
 
 #include <filesystem>
-#include <vector>
 
 class Lexer : private Pipeline {
 public:
@@ -14,6 +13,11 @@ public:
     std::pair<std::vector<Token>, bool> tokenize();
     bool tokenize(std::vector<Token>& tokens);
     void printTokens(const std::vector<Token>& tokens, std::size_t right_just) const;
+
+    void ErrorWrapper(
+        std::string_view start,
+        std::function<std::string(std::pair<Content, std::size_t>)> func
+    ) override;
 
 private:
     struct Number {
@@ -40,4 +44,13 @@ private:
     State m_state{};
     std::string m_content{};
     std::string::iterator m_start{}, m_current{};
+
+};
+
+#include "Error.hpp"
+
+template <>
+class Error<Lexer> {
+public:
+    static void InvalidCharacter(Lexer& lexer);
 };

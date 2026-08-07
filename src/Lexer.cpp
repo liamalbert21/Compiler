@@ -1,22 +1,12 @@
 #include "Lexer.hpp"
 #include "Log.hpp"
-#include "Error.hpp"
 
-#include <iostream>
 #include <fstream>
 #include <sstream>
 #include <iomanip>
 #include <cassert>
-#include <string_view>
-#include <iterator>
 
 namespace fs = std::filesystem;
-
-template <>
-class Error<Lexer> {
-public:
-    static std::string InvalidCharacter(std::string_view content, auto where);
-};
 
 void Lexer::initConditionalMembers() {
     if (m_content.length()) {
@@ -65,12 +55,7 @@ std::pair<std::vector<Token>, bool> Lexer::tokenize() {
         }
     }
 
-    Log::instance().error(Error<Lexer>::InvalidCharacter(
-        m_content, 
-        std::distance(m_content.begin(), m_current)
-    ));
-
-    tokens.clear();
+    Error<Lexer>::InvalidCharacter(*this);
     return { tokens, false };
 }
 
@@ -234,18 +219,35 @@ bool Lexer::isEOF() const {
     return m_current == m_content.end();
 }
 
-std::string Error<Lexer>::InvalidCharacter(std::string_view content, auto where) {
+// Considering writing a default implementation for ErrorWrapper that takes a
+// context and generates the associated error message, before setting m_state to fail.
+void Lexer::ErrorWrapper(
+    std::string_view start,
+    std::function<std::string(std::pair<Content, std::size_t>)> func
+) {
     std::ostringstream message{};
-    message << "\nERROR: Invalid character at position " << where << "!\n";
+    const std::size_t width{ start.length() };
 
-    // Need -2 becuase of the newlines
-    std::size_t width{ message.str().length() - 2 };
-    
-    message << std::string(width, '-') << '\n'
-            << content << '\n'
-            << std::setw(where + 1) << "^\n"
-            << std::setw(where + 1) << "|\n"
+    message << start << '\n'
+            << std::string(width, '-') << '\n'
+            << func({ m_content, static_cast<std::size_t>(m_current - m_content.begin()) })
             << std::string(width, '-');
 
-    return message.str();
+    Log::instance().error(message.str());
+    m_state = State::FAIL;
+}
+
+void Error<Lexer>::InvalidCharacter(Lexer& lexer) {
+    auto description{ [](Context data) -> std::string {
+        std::ostringstream oss{};
+
+        oss << std::get<std::string>(data.first) << '\n'
+            << std::setw(data.second + 1) << "^\n"
+            << std::setw(data.second + 1) << "|\n";
+
+        return oss.str();
+    }};
+
+    std::string message{ "Invalid character!" };
+    lexer.ErrorWrapper(message, std::function<std::string(Context)>{ description });
 }

@@ -1,8 +1,6 @@
 #include "Log.hpp"
 #include "Settings.hpp"
 
-#include <memory>
-
 Log& Log::instance() {
     static std::unique_ptr<Log> log{ new Log{} };
     return *log; 

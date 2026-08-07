@@ -2,8 +2,6 @@
 
 #include "Pipeline.hpp"
 
-#include <type_traits>
-
 // Explicitly include Error.hpp to implement error functionality via Error<T>
 // Critical errors should be handled by assertions/exceptions
 

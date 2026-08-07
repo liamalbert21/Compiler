@@ -12,7 +12,9 @@
 int main() {
     std::vector<Token> tokens{};
     bool success{};
-
+    
+// Using macros to avoid creating a default constructor for the lexer. In other
+// words, I don't want lexer to be instantiatied within a conditional branch
 #if INPUT_METHOD == FILE_INPUT
     Lexer lexer{ ROOT_DIR / Settings::File::input };
 #elif INPUT_METHOD == MANUAL_INPUT 

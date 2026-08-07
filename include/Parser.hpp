@@ -3,19 +3,22 @@
 #include "Pipeline.hpp"
 #include "Expression.hpp"
 
-#include <vector>
-#include <optional>
+#define TOKENS std::vector<Token>
 
-class Parser : private Pipeline {
+class Parser : public Pipeline {
 public:
-    Parser(std::vector<Token> tokens);
+    Parser(TOKENS tokens);
 
     bool generateAST();
     void printAST() const;
 
+    void ErrorWrapper(
+        std::string_view start,
+        std::function<std::string(std::pair<Content, std::size_t>)> func
+    ) override;
+
 private:
     std::optional<Token> matchTokens(std::initializer_list<Token::Type> types);
-    void handleMissingOperand(Token::Type op, Expr::OperandSide side);
     Expr::OperandSide getMissingOperandSide(std::unique_ptr<Expr>& left, std::unique_ptr<Expr>& right);
 
     std::unique_ptr<Expr> expression();
@@ -37,7 +40,18 @@ private:
     bool  isEOF() const;
 
     State m_state{};
-    std::vector<Token> m_tokens{};
-    std::vector<Token>::iterator m_current{};
+    TOKENS m_tokens{};
+    TOKENS::iterator m_current{};
     std::unique_ptr<Expr> m_ast{};
 };
+
+#include "Error.hpp"
+
+template<>
+class Error<Parser> {
+public:
+    static void ExpectedExpression(Parser& parser, Expr::OperandSide side, Token::Type type);
+    static void ExpectedOperand(Parser& parser);
+};
+
+#undef TOKENS
