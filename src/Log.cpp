@@ -7,26 +7,11 @@ Log& Log::instance() {
 }
 
 bool Log::error(std::string&& message) {
-    bool success{ false };
-    
-    // Checks whether there's another pair with the same key
-    if (m_errors.size() <= Settings::Limits::max_errors && m_unique_messages.emplace(message).second) {
-        m_errors.emplace(std::move(message));
-        success = true;
-    }
-
-    return success;
+    return m_errors.size() <= Settings::Limits::max_errors && m_unique_messages.emplace(message).second;
 }
 
 bool Log::debug(std::string&& message) {
-    bool success{ false };
-
-    if (m_unique_messages.emplace(message).second) {
-        m_debug.emplace(std::move(message));
-        success = true;
-    }
-
-    return success;
+    return m_unique_messages.emplace(message).second;
 }
 
 void Log::dump(std::ostream& dos, std::ostream& eos) {
@@ -38,8 +23,11 @@ void Log::dump(std::ostream& dos, std::ostream& eos) {
     }
 
     // Do not dump debug messages if the pipeline failed to compile the input
+    // In other words, only dump the debug log if no errors were produced
     if (dump_debug) {
-        dos << m_debug.front() << '\n';
-        m_debug.pop();
+        while (!m_debug.empty()) {
+            dos << m_debug.front() << '\n';
+            m_debug.pop();
+        }
     }
 }

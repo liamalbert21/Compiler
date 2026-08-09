@@ -30,8 +30,5 @@ protected:
      * @param func 
      * @param args 
      */
-    virtual void ErrorWrapper(
-        std::string_view start,
-        std::function<std::string(Context)> func
-    ) = 0;
+    virtual void ErrorWrapper(std::string_view start, std::function<std::string(Context)> func) = 0;
 };
