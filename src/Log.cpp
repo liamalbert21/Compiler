@@ -7,15 +7,29 @@ Log& Log::instance() {
 }
 
 bool Log::error(std::string&& message) {
-    return m_errors.size() <= Settings::Limits::max_errors && m_unique_messages.emplace(message).second;
+    bool success{ false };
+
+    if (m_errors.size() <= Settings::Limits::max_errors && m_unique_messages.insert(message).second) {
+        m_errors.emplace(std::move(message));
+        success = true;
+    }
+    
+    return success;
 }
 
 bool Log::debug(std::string&& message) {
-    return m_unique_messages.emplace(message).second;
+    bool success{ false };
+
+    if (m_unique_messages.insert(message).second) {
+        m_debug.emplace(std::move(message));
+        success = true;
+    }
+    
+    return success;
 }
 
 void Log::dump(std::ostream& dos, std::ostream& eos) {
-    const bool dump_debug{ !m_errors.empty() };
+    const bool dump_debug{ m_errors.empty() };
 
     while (!m_errors.empty()) {
         eos << m_errors.front() << '\n';
