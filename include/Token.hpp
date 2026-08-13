@@ -4,7 +4,6 @@
 #include <variant>
 
 using Literal = std::variant<char, int, double>;
-using Lexeme  = std::variant<char, std::string>;
 
 struct Token {
     enum class Type {
@@ -27,5 +26,4 @@ struct Token {
 
     Type type{};
     Literal literal{};
-    Lexeme lexeme{};
 };

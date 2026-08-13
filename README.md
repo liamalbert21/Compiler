@@ -10,7 +10,6 @@
     - [The Parser](#parser)
     - [Error Handling](#error-handling)
     - [Logging](#logging)
-    - [Other](#other)
 - [TODO](#todo)
 
 ## Overview
@@ -34,39 +33,58 @@ The following software is required to successfully build the program:
 ***DO NOT PUSH UNTIL YOU HAVE ADDED THE REQUIRED TEST CASES TO THE PROJECT AND FINISHED THE INSTRUCTIONS FOR THIS SECTION! Just list a command series for Windows and figure out a way to build tests and the actual program separately.***
 
 ## Grammar
-This sections uses extended Backus-Nuar form (EBNF) to describe the regulated grammar.
+Valid input expressions abide by the following rules:
 
-Valid input expressions currently abide by the following rules:
-
-| Operator | Operation | Precedence |
-| --- | --- | --- |
-| + | Addition | Term |
-| - | Subtraction | Term & Unary (Right Associative) |
-| * | Multiplciation | Factor |
-| / | Division | Factor |
-| ! | Factorial Expansion | Unary (Left Associative) |
+| Operator | Operation           | Precedence                       |
+| -------- | ------------------- | -------------------------------- |
+| +        | Addition            | Term                             |
+| -        | Subtraction         | Term & Unary (Right Associative) |
+| *        | Multiplciation      | Factor                           |
+| /        | Division            | Factor                           |
+| !        | Factorial Expansion | Unary (Left Associative)         |
 
 - Precedence:
     - expression &rarr; term
     - term &rarr; factor
     - factor &rarr; unary (right associative)
     - unary (right associative) &rarr; unary (left associative)
-    - unary (left associative) &rarr;
+    - unary (left associative) &rarr; primary
 
 - Additional Rules:
     - Whitespace is ignored. However, tokens comprising multiple characters must not contain any
-    - 
+    - Double-precision numbers may start with or end with a separator, but each must have at least one explicit accompanying digit and they may not contain more than one separator
+    - Numeric tokens must be separated by whitespace
+    - Distribution without an explicit `*` is currently unsupported
 
 ## Implementation Details
 This section provides an overview of the project's implementation. While it does not cover every function and/or line of code, it serves to underscore important design decisions and considerations that ultimately made their way to the most recent commit.
 
 ### Tokens
-Fuck! This is going to take a long time to finish...
+Tokens are the fundamental unit for storing expression data in the compilation pipeline. Inevitably, all `Token` instances have two populated fields: `type` (`Token::Type`) and `literal` (`Literal`). `Literal` is an aliased type:
+
+    // Token.hpp
+    using Literal = std::variant<char, int, double>;
+
+`type` serves as the primary differentiator of tokens throughout the pipeline. When the active parser needs to match tokens at certain precedence levels or the lexer needs to distinguish betwewen numeric types, it uses this field to do so.
+
+A few associated member functions are defined to extend the functionality of `Token` in certain contexts. The following methods will not be covered, as their declarations should suffice:
+
+    // Token.hpp
+    struct Token {
+        ...
+        struct ToString {
+            static std::string Type(const Token::Type type);
+        };
+
+        explicit operator bool() const;
+        bool operator==(const Token& other) const;
+        friend std::ostream& operator<<(std::ostream& out, const Token& token);
+    };
 
 ### Lexer
 The lexer handles the tokenization stage of the overall pipeline. It is initialized by passing a value string (for unified control over move semantics and copy construction) or a path to the input file (via `std::filesystem::path`).
 
-The public interface exposes two useful methods: `tokenize()` and `printTokens`. Both methods do exactly what one would expect, with the caveat that `tokenize()` updates the state of the active `Lexer` object. Any attempts to print an empty lexer or one whose state is not `OKAY` will have no effect.
+The public interface exposes two useful methods: `tokenize` and `printTokens`. Both methods do exactly what one would expect, with the caveat that `tokenize` updates the state of the active `Lexer` object. Any attempts to print an empty lexer or one whose state is not `OKAY` will have no effect.
 
     // Lexer.hpp
     std::pair<std::vector<Token>, bool> tokenize();
@@ -93,7 +111,7 @@ You can customize where the actual token values appear (relative to the left-han
 
 One should assess the success of the tokenization before feeding the tokenized vector to the active `Parser` object. When the active lexer encounters an unknown token type, it registers an `InvalidCharacter` error (see [Error Handling](#error-handling) for implementation details). This sets the lexer's state to `FAIL` and terminates processing, returning false.
 
-The tokenization logic is rather straightforward. When a new token is first detected (i.e. when `getToken` is called), the lexer attempts to deduce its type with a switch statement (`guessTokenType`). Should the result be a complete type, the literal and lexeme are assigned appropriately, and the token window [m_start, m_current] clamps to [m_current, m_current] as a means to prepare the lexer for the next token. Whitepsace is ignored at the callsite (`tokenize()`) to simplify edge cases in the extraction logic.
+The tokenization logic is rather straightforward. When a new token is first detected (i.e. when `getToken` is called), the lexer attempts to deduce its type with a switch statement (`guessTokenType`). Should the result be a complete type, the literal and lexeme are assigned appropriately, and the token window [m_start, m_current] clamps to [m_current, m_current] as a means to prepare the lexer for the next token. Whitepsace is ignored at the callsite (`tokenize`) to simplify edge cases in the extraction logic.
 
 Numbers are slightly more complex. The compiler supports both integers and double-precision numbers, so they must be differentiated. To do so, the lexer begins by "reguessesing" the token type with `init_guess`, provided earlier by `guessTokenType`.
 
@@ -105,7 +123,7 @@ Numbers are slightly more complex. The compiler supports both integers and doubl
 
 If the current token began with a separator (`.`), we can immediately conclude that its final type must be `DOUBLE` under the assumption that the remainder of the token is uncorrupted. We check for corruption as we extract successive characters; any separators we encounter beyond the start of the token may only be consumed if the current type is `INT`. Encountering a separator while the current type is `DOUBLE` implies that one was already found, as in (e.g.) 3.14.15. Such an event implicates invalid syntax.
 
-`tokenize()` returns either `std::pair<std::vector<Token>, bool>` or `bool` based upon whether the user wants to assign the result outside of or within its scope. The boolean indicates whether the operation was successful, irrespective of the overload.
+`tokenize` returns either `std::pair<std::vector<Token>, bool>` or `bool` based upon whether the user wants to assign the result outside of or within its scope. The boolean indicates whether the operation was successful, irrespective of the overload.
 
 ### Expressions
 
@@ -164,10 +182,12 @@ The logger is a singleton class that consolidates all debug and error messages, 
 
     // Note: "message" has type std::string&&
 
-Where exactly the logger is invoked is irrelevant. When the logger dumps its contents, it first checks whether the error queue is empty&mdash;the debug queue is dumped if and only if this holds true; otherwise, the output stream will just be populated with errors.
+Where exactly the logger is invoked is irrelevant. When the logger dumps its contents, it first checks whether the error queue is empty&mdash;the debug queue is dumped if this holds true; otherwise, the output stream will just be populated with errors.
 
-### Other
+The primary data structures associated with this class are unordered sets and queues, strictly for checking error message existence (to avoid holding duplicate error messages) and enforcing FIFO at the output. Messages are inserted as desired and popped upon a call to `dump` to improve memory efficiency. If the user wishes to reuse the output, it is (as of now) their responsibility to redirect it by passing output streams:
 
+    // Log.hpp
+    void dump(std::ostream& dos = std::cout, std::ostream& eos = std::cerr);
 
 ## TODO
 - Generate the actual machine code (compilation)

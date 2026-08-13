@@ -78,5 +78,5 @@ Token::operator bool() const {
 }
 
 bool Token::operator==(const Token& other) const {
-    return type == other.type && literal == other.literal && lexeme == other.lexeme;
+    return type == other.type && literal == other.literal;
 }

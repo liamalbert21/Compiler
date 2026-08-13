@@ -101,7 +101,6 @@ Token Lexer::getToken() {
     }
     else {
         target.literal = first;
-        target.lexeme = first;
     }
     prepareNextToken();
 
@@ -127,7 +126,7 @@ Token Lexer::generateNumericToken(Token::Type init_guess) {
         throw std::runtime_error("CODE FAULT: A digit token was converted into something non-numeric!");
     }
 
-    return { data.type, literal, data.value_str };
+    return { data.type, literal };
 }
 
 Lexer::Number Lexer::getNumericTokenData(Token::Type final_guess) {
