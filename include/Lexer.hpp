@@ -7,8 +7,8 @@
 
 class Lexer : private Pipeline {
 public:
-    Lexer(std::string content);
-    Lexer(const std::filesystem::path& input);
+    explicit Lexer(std::string content);
+    explicit Lexer(const std::filesystem::path& input);
 
     std::pair<std::vector<Token>, bool> tokenize();
     bool tokenize(std::vector<Token>& tokens);
@@ -41,13 +41,4 @@ private:
     State m_state{};
     std::string m_content{};
     std::string::iterator m_start{}, m_current{};
-
-};
-
-#include "Error.hpp"
-
-template <>
-class Error<Lexer> {
-public:
-    static void InvalidCharacter(Lexer& lexer);
 };

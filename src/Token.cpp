@@ -24,17 +24,17 @@ std::string Token::ToString::Type(const Token::Type type) {
 
         // Operators
         case PLUS:
-            return "plus sign";
+            return "sum";
         case MINUS:
-            return "minus sign";
+            return "difference";
         case STAR:
-            return "multiplication sign";
+            return "product";
         case SLASH:
-            return "division sign";
+            return "quotient";
         case FACTORIAL:
-            return "factorial sign";
+            return "factorial";
 
-        // These strings should never be displayed to the user
+        // These strings should NEVER be displayed to the user
         case __DIGIT:
             return "digit";
         case __SEPARATOR:

@@ -1,4 +1,5 @@
 #include "Parser.hpp"
+#include "Error.hpp"
 #include "Log.hpp"
 
 #include <cassert>
@@ -6,6 +7,13 @@
 #include <sstream>
 
 using TokenTypes = std::initializer_list<Token::Type>;
+
+template<>
+class Error<Parser> {
+public:
+    static void ExpectedExpression(Parser& parser, Expr::OperandSide side, Token::Type type);
+    static void ExpectedOperand(Parser& parser);
+};
 
 Parser::Parser(std::vector<Token> tokens) :
     m_state{ State::INIT }, m_tokens{ std::move(tokens) } {
@@ -52,9 +60,8 @@ std::optional<Token> Parser::matchTokens(TokenTypes types) {
 }
 
 Expr::OperandSide Parser::getMissingOperandSide(std::unique_ptr<Expr>& left, std::unique_ptr<Expr>& right) {
-    return !left &&  right ? Expr::OperandSide::LEFT  :
-            left && !right ? Expr::OperandSide::RIGHT :
-                             Expr::OperandSide::UNKNOWN;
+    return (!left && right) ? Expr::OperandSide::LEFT  :
+           (left && !right) ? Expr::OperandSide::RIGHT : Expr::OperandSide::UNKNOWN;
 }
 
 std::unique_ptr<Expr> Parser::expression() {
@@ -200,14 +207,14 @@ bool Parser::isEOF() const {
 
 void Parser::ErrorWrapper(
     std::string_view start,
-    std::function<std::string(std::pair<Content, std::size_t>)> func
+    std::function<std::string(Context)> func
 ) {
     std::ostringstream message{};
     const std::size_t width{ start.length() };
 
     message << '\n' << start << '\n'
             << std::string(width, '-') << '\n'
-            << func({ m_tokens, static_cast<std::size_t>(m_current - m_tokens.begin()) })
+            << func({ &m_tokens, static_cast<std::size_t>(m_current - m_tokens.begin()) })
             << std::string(width, '-');
 
     Log::instance().error(message.str());
@@ -217,7 +224,7 @@ void Parser::ErrorWrapper(
 void Error<Parser>::ExpectedExpression(Parser& parser, Expr::OperandSide side, Token::Type type) {
     auto description{ [=](Context data) -> std::string {
         std::ostringstream oss{};
-        auto start{ std::get<std::vector<Token>>(data.first).begin() };
+        auto start{ std::get<const std::vector<Token>*>(data.first)->begin() };
 
         oss << "* At token instance: "
             << std::count_if(

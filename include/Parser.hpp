@@ -7,7 +7,7 @@
 
 class Parser : private Pipeline {
 public:
-    Parser(Tokens tokens);
+    explicit Parser(Tokens tokens);
 
     bool generateAST();
     void printAST() const;
@@ -37,17 +37,9 @@ private:
     bool  isEOF() const;
 
     State m_state{};
-    Tokens m_Tokens{};
+    Tokens m_tokens{};
     Tokens::iterator m_current{};
     std::unique_ptr<Expr> m_ast{};
 };
 
 #undef   Tokens
-#include "Error.hpp"
-
-template<>
-class Error<Parser> {
-public:
-    static void ExpectedExpression(Parser& parser, Expr::OperandSide side, Token::Type type);
-    static void ExpectedOperand(Parser& parser);
-};

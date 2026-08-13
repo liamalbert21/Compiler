@@ -4,7 +4,7 @@
 
 struct Token;
 
-using Content = std::variant<std::string, std::vector<Token>>;
+using Content = std::variant<std::string_view, const std::vector<Token>*>;
 using Context = std::pair<Content, std::size_t>;
 
 /**

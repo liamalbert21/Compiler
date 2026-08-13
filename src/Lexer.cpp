@@ -1,4 +1,5 @@
 #include "Lexer.hpp"
+#include "Error.hpp"
 #include "Log.hpp"
 
 #include <fstream>
@@ -7,6 +8,12 @@
 #include <cassert>
 
 namespace fs = std::filesystem;
+
+template <>
+class Error<Lexer> {
+public:
+    static void InvalidCharacter(Lexer& lexer);
+};
 
 void Lexer::initConditionalMembers() {
     if (m_content.length()) {
@@ -61,7 +68,7 @@ std::pair<std::vector<Token>, bool> Lexer::tokenize() {
 
 bool Lexer::tokenize(std::vector<Token>& tokens) {
     auto result{ tokenize() };
-    tokens = result.first;
+    tokens = std::move(result.first);
     return result.second;
 }
 
@@ -223,7 +230,7 @@ bool Lexer::isEOF() const {
 // context and generates the associated error message, before setting m_state to fail.
 void Lexer::ErrorWrapper(
     std::string_view start,
-    std::function<std::string(std::pair<Content, std::size_t>)> func
+    std::function<std::string(Context)> func
 ) {
     std::ostringstream message{};
     const std::size_t width{ start.length() };
@@ -241,7 +248,7 @@ void Error<Lexer>::InvalidCharacter(Lexer& lexer) {
     auto description{ [](Context data) -> std::string {
         std::ostringstream oss{};
 
-        oss << std::get<std::string>(data.first) << '\n'
+        oss << std::get<std::string_view>(data.first) << '\n'
             << std::setw(data.second + 1) << "^\n"
             << std::setw(data.second + 1) << "|\n";
 
