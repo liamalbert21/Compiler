@@ -66,7 +66,7 @@ Fuck! This is going to take a long time to finish...
 ### Lexer
 The lexer handles the tokenization stage of the overall pipeline. It is initialized by passing a value string (for unified control over move semantics and copy construction) or a path to the input file (via `std::filesystem::path`).
 
-The public interface exposes two useful methods: `tokenize` and `printTokens`. Both methods do exactly what one would expect, with the caveat that `tokenize` updates the state of the active `Lexer` object. Any attempts to print an empty lexer or one whose state is not `OKAY` will have no effect.
+The public interface exposes two useful methods: `tokenize()` and `printTokens`. Both methods do exactly what one would expect, with the caveat that `tokenize()` updates the state of the active `Lexer` object. Any attempts to print an empty lexer or one whose state is not `OKAY` will have no effect.
 
     // Lexer.hpp
     std::pair<std::vector<Token>, bool> tokenize();
@@ -91,9 +91,21 @@ You can customize where the actual token values appear (relative to the left-han
     int                          7
     right bracket                ]
 
-One should assess the success of the tokenization before feeding the tokenized vector to the active `Parser` object. When the active lexer encounters an unknown token type, it registers an `InvalidCharacter` error (see [Error Handling](#error-handling) for implementation details). This sets the lexer's state to `FAIL` and immediately terminates any additional processing, returning false.
+One should assess the success of the tokenization before feeding the tokenized vector to the active `Parser` object. When the active lexer encounters an unknown token type, it registers an `InvalidCharacter` error (see [Error Handling](#error-handling) for implementation details). This sets the lexer's state to `FAIL` and terminates processing, returning false.
 
-The processing logic is rather straight forward. At the start of a new token detection, the lexer attempts to immediately deduce its
+The tokenization logic is rather straightforward. When a new token is first detected (i.e. when `getToken` is called), the lexer attempts to deduce its type with a switch statement (`guessTokenType`). Should the result be a complete type, the literal and lexeme are assigned appropriately, and the token window [m_start, m_current] clamps to [m_current, m_current] as a means to prepare the lexer for the next token. Whitepsace is ignored at the callsite (`tokenize()`) to simplify edge cases in the extraction logic.
+
+Numbers are slightly more complex. The compiler supports both integers and double-precision numbers, so they must be differentiated. To do so, the lexer begins by "reguessesing" the token type with `init_guess`, provided earlier by `guessTokenType`.
+
+    // Lexer.cpp
+    Token Lexer::generateNumericToken(Token::Type init_guess) {
+        Token::Type new_guess{ init_guess == Token::Type::__SEPARATOR ? Token::Type::DOUBLE : Token::Type::INT };
+        ...
+    }
+
+If the current token began with a separator (`.`), we can immediately conclude that its final type must be `DOUBLE` under the assumption that the remainder of the token is uncorrupted. We check for corruption as we extract successive characters; any separators we encounter beyond the start of the token may only be consumed if the current type is `INT`. Encountering a separator while the current type is `DOUBLE` implies that one was already found, as in (e.g.) 3.14.15. Such an event implicates invalid syntax.
+
+`tokenize()` returns either `std::pair<std::vector<Token>, bool>` or `bool` based upon whether the user wants to assign the result outside of or within its scope. The boolean indicates whether the operation was successful, irrespective of the overload.
 
 ### Expressions
 
@@ -139,11 +151,20 @@ These efforts ensure all error messages (that work for a specific pipeline) have
 One downside to this approach is the requirement that `ErrorWrapper` becomes public after it is inherited. A `Pipeline` (child) `x` of type `T` calls `ErrorWrapper` inside of `Error<T>` via `x.ErrorWrapper(...);` to reduce the essential verbosity, so it can technically be called wherever `T.hpp` is included. As with any other object-oriented design pattern, there always seems to be some limitation.
 
 ### Logging
-The logger is a singleton class that consolidates all debug and error messages. It is used in the following manner:
+The logger is a singleton class that consolidates all debug and error messages, and is used in the following manner:
 
+    // Append error message to internal queue
+    Log::instance().error(message);
 
+    // Do the same but with a debug message
+    Log::instance().debug(message);
 
-Where exactly the logger is invoked is irrelevant.
+    // Dump either the error or debug queue (error queue takes precedence)
+    Log::instance().dump();
+
+    // Note: "message" has type std::string&&
+
+Where exactly the logger is invoked is irrelevant. When the logger dumps its contents, it first checks whether the error queue is empty&mdash;the debug queue is dumped if and only if this holds true; otherwise, the output stream will just be populated with errors.
 
 ### Other
 

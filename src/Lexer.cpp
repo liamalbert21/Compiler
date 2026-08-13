@@ -24,7 +24,7 @@ void Lexer::initConditionalMembers() {
 
 /**
  * @brief Construct a new Lexer:: Lexer object
- * 
+ *
  * @note  Moving content during member initialization permits both move and copy
  *        construction with one string overload and optimized efficientcy.
  *        Either pass an rvalue and invoke the move constructor for content or
@@ -63,10 +63,13 @@ std::pair<std::vector<Token>, bool> Lexer::tokenize() {
     }
 
     Error<Lexer>::InvalidCharacter(*this);
+    tokens.clear();
     return { tokens, false };
 }
 
 bool Lexer::tokenize(std::vector<Token>& tokens) {
+    // auto works here because this function requires an argument (tokens),
+    // while the overload accepts none
     auto result{ tokenize() };
     tokens = std::move(result.first);
     return result.second;
@@ -77,6 +80,8 @@ void Lexer::printTokens(const std::vector<Token>& tokens, std::size_t right_just
         return;
     }
 
+    // Might want to eventually customize where this is sent. Could throw a
+    // stream variable into settings or pass an additional stream argument
     for (const Token& token : tokens) {
         std::cout << std::setw(right_just) << token << '\r' << Token::ToString::Type(token.type) << '\n';
     }
@@ -132,7 +137,7 @@ Lexer::Number Lexer::getNumericTokenData(Token::Type final_guess) {
         Token::Type partial_type{ guessTokenType(peek()) };
 
         if (partial_type == Token::Type::__SEPARATOR) {
-            // i.e. a separator was already encountered in the target token
+            // A separator was already encountered in the target token
             if (type == Token::Type::DOUBLE) {
                 return { Token::Type::INVALID, "" };
             }
@@ -147,7 +152,6 @@ Lexer::Number Lexer::getNumericTokenData(Token::Type final_guess) {
 
     return { type, std::string{ m_start, m_current } };
 }
-
 
 Token::Type Lexer::guessTokenType(char ch) const {
     using enum Token::Type;
@@ -179,8 +183,8 @@ Token::Type Lexer::guessTokenType(char ch) const {
         case '!':
             return FACTORIAL;
         
-        // Whitespace (will eventually ignore)
-        // \n and \r may later be changed if I support multiple lines
+        // Whitespace (will eventually ignore) \n and \r may later be changed if
+        // I support multiple lines
         case ' ':
             return __WHITESPACE;
         case '\n':
@@ -227,7 +231,8 @@ bool Lexer::isEOF() const {
 }
 
 // Considering writing a default implementation for ErrorWrapper that takes a
-// context and generates the associated error message, before setting m_state to fail.
+// context and generates the associated error message, before setting m_state to
+// fail.
 void Lexer::ErrorWrapper(
     std::string_view start,
     std::function<std::string(Context)> func
