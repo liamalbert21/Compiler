@@ -28,9 +28,8 @@ bool Parser::generateAST() {
     m_state = State::OKAY;
     m_ast = expression();
     
-    // Need to check that the state is already valid because of ')' or ']'.
-    // Encountering one before '(' or '[' sets the corresponding operand to
-    // nullptr
+    // Need to check whether the state is already valid because of ')' and ']'.
+    // Encountering one before '(' or '[' sets the target operand to nullptr
     if (!isEOF() && m_state != State::FAIL) {
         Error<Parser>::ExpectedOperator(*this);
     }
@@ -220,7 +219,7 @@ void Parser::ErrorWrapper(
 
     message << '\n' << start << '\n'
             << std::string(width, '-') << '\n'
-            << func({ &m_tokens, static_cast<std::size_t>(m_current - m_tokens.begin()) })
+            << func({ m_tokens, static_cast<std::size_t>(m_current - m_tokens.begin()) })
             << std::string(width, '-');
 
     Log::instance().error(message.str());
@@ -230,7 +229,7 @@ void Parser::ErrorWrapper(
 void Error<Parser>::ExpectedExpression(Parser& parser, Expr::OperandSide side, const Token& target) {
     auto description{ [=](Context data) -> std::string {
         std::ostringstream oss{};
-        auto start{ std::get<const std::vector<Token>*>(data.first)->begin() };
+        auto start{ std::get<std::span<const Token>>(data.first).begin() };
 
         oss << "* At token instance: "
             << std::count_if(

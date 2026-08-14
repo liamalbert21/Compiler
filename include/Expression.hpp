@@ -49,21 +49,8 @@ public:
         void visit(Grouping& grouping) const override;
     };
 
-    // Deleting an object through a pointer to base invokes undefined behavior
-    // unless the destructor in the base class is virtual. Otherwise, calling
-    // code can attempt to destroy a derived class object through a base class
-    // pointer.
-    // 
-    // ----- e.g. -----
-    // std::unique_ptr<Expr> expr{ std::make_unique<Binary>(...) };
-    // ~expr(); // 'expr' is a base class pointer
-    // 
-    // I originally did not have this destructor. The compiler was calling
-    // delete on 'Expr', but it is abstract and did not have a virtual
-    // destructor (runtime polymorphism), so an error was thrown to avoid UB by
-    // inappropriately modifying memory.
-    virtual ~Expr() = default;
     virtual void accept(const Visitor& visitor) = 0;
+    virtual ~Expr() = default;
 };
 
 // 2 operands (expressions), 1 operator
