@@ -6,7 +6,7 @@
 // Input configuration
 #define FILE_INPUT          0
 #define MANUAL_INPUT        1
-#define MANUAL_INPUT_STR    ".1"
+#define MANUAL_INPUT_STR    "[1 +"
 #define INPUT_METHOD        MANUAL_INPUT
 
 int main() {
@@ -14,7 +14,7 @@ int main() {
 
 #if INPUT_METHOD == FILE_INPUT
     Lexer lexer{ ROOT_DIR / Settings::File::input };
-#elif INPUT_METHOD == MANUAL_INPUT 
+#elif INPUT_METHOD == MANUAL_INPUT
     std::string input{ MANUAL_INPUT_STR };
     Lexer lexer{ std::move(input) };
 #endif

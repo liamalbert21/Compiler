@@ -11,8 +11,9 @@ using TokenTypes = std::initializer_list<Token::Type>;
 template<>
 class Error<Parser> {
 public:
-    static void ExpectedExpression(Parser& parser, Expr::OperandSide side, Token::Type type);
-    static void ExpectedOperand(Parser& parser);
+    static void ExpectedExpression(Parser& parser, Expr::OperandSide side, const Token& target);
+    static void ExpectedOperator(Parser& parser);
+    static void ExpectedClosingGroup(Parser& parser, Token::Type type);
 };
 
 Parser::Parser(std::vector<Token> tokens) :
@@ -27,8 +28,11 @@ bool Parser::generateAST() {
     m_state = State::OKAY;
     m_ast = expression();
     
-    if (!isEOF()) {
-        Error<Parser>::ExpectedOperand(*this);
+    // Need to check that the state is already valid because of ')' or ']'.
+    // Encountering one before '(' or '[' sets the corresponding operand to
+    // nullptr
+    if (!isEOF() && m_state != State::FAIL) {
+        Error<Parser>::ExpectedOperator(*this);
     }
 
     return m_state == State::OKAY;
@@ -49,13 +53,13 @@ std::optional<Token> Parser::matchTokens(TokenTypes types) {
         return std::nullopt;
     }
     
-    Token target{ peek() };
+    Token target{ extract() };
     const auto it{ std::find(types.begin(), types.end(), target.type) };
 
     if (it == types.end()) {
         return std::nullopt;
     }
-    advance();
+    // advance();
     return target;
 }
 
@@ -81,7 +85,7 @@ std::unique_ptr<Expr> Parser::term() {
             Error<Parser>::ExpectedExpression(
                 *this,
                 getMissingOperandSide(expr, right),
-                op.value().type
+                op.value()
             );
         }
 
@@ -105,7 +109,7 @@ std::unique_ptr<Expr> Parser::factor() {
             Error<Parser>::ExpectedExpression(
                 *this,
                 getMissingOperandSide(expr, right),
-                op.value().type
+                op.value()
             );
         }
 
@@ -121,12 +125,12 @@ std::unique_ptr<Expr> Parser::unary::right(Parser& parser) {
     // Because these operators are right-associative, they requrire that we find
     // the operand AFTER the operator.
     if (auto op{ parser.matchTokens(types) }) {
-        std::unique_ptr<Expr> expr{ unary::left(parser) };
+        std::unique_ptr<Expr> expr{ unary::right(parser) };
         if (!expr) {
             Error<Parser>::ExpectedExpression(
                 parser,
                 Expr::OperandSide::RIGHT,
-                op.value().type
+                op.value()
             );
         }
 
@@ -148,7 +152,7 @@ std::unique_ptr<Expr> Parser::unary::left(Parser& parser) {
             Error<Parser>::ExpectedExpression(
                 parser,
                 Expr::OperandSide::LEFT,
-                op.value().type
+                op.value()
             );
         }
 
@@ -174,8 +178,10 @@ std::unique_ptr<Expr> Parser::primary() {
         Token::Type expected{
             grouping.value().type == Token::Type::LEFT_PAREN ? Token::Type::RIGHT_PAREN : Token::Type::RIGHT_BRACK
         };
-
-        assert(matchTokens({ expected }) && "Critical error: A group in the expression does not close!");
+        
+        if (!matchTokens({ expected })) {
+            Error<Parser>::ExpectedClosingGroup(*this, expected);
+        }
     }
 
     return expr;
@@ -221,7 +227,7 @@ void Parser::ErrorWrapper(
     m_state = State::FAIL;
 }
 
-void Error<Parser>::ExpectedExpression(Parser& parser, Expr::OperandSide side, Token::Type type) {
+void Error<Parser>::ExpectedExpression(Parser& parser, Expr::OperandSide side, const Token& target) {
     auto description{ [=](Context data) -> std::string {
         std::ostringstream oss{};
         auto start{ std::get<const std::vector<Token>*>(data.first)->begin() };
@@ -229,8 +235,8 @@ void Error<Parser>::ExpectedExpression(Parser& parser, Expr::OperandSide side, T
         oss << "* At token instance: "
             << std::count_if(
                     start,
-                    start + data.second,
-                    [=](const Token& token) { return token.type == type; }
+                    start + data.second + 1,
+                    [=](const Token& token) { return token.type == target.type; }
                 )
             << '\n';
 
@@ -243,18 +249,31 @@ void Error<Parser>::ExpectedExpression(Parser& parser, Expr::OperandSide side, T
                     side == Expr::OperandSide::LEFT  ? "before " : 
                     side == Expr::OperandSide::RIGHT ? "after "  : "before/after "
                 )
-            << Token::ToString::Type(type) << '!';
+            << '\'' << target << '\'';
 
     parser.ErrorWrapper(message.str(), std::function<std::string(Context)>{ description });
 }
 
-void Error<Parser>::ExpectedOperand(Parser& parser) {
+void Error<Parser>::ExpectedOperator(Parser& parser) {
     auto description{ [](Context data) -> std::string {
         std::ostringstream oss{};
-        oss << "Location: Token instance " << data.second + 1 << '\n';
+        oss << "* At token position: " << data.second + 1 << '\n';
         return oss.str();
     }};
 
-    std::string message{ "Expected operand!" };
+    std::string message{ "Expected operator!" };
     parser.ErrorWrapper(message, std::function<std::string(Context)>{ description });
+}
+
+void Error<Parser>::ExpectedClosingGroup(Parser& parser, Token::Type type) {
+    auto description{ [](Context data) -> std::string {
+        std::ostringstream oss{};
+        oss << "* At token position: " << data.second + 1 << '\n';
+        return oss.str();
+    }};
+
+    std::ostringstream message{};
+    message << "Expected " << Token::ToString::Type(type) << '!';
+
+    parser.ErrorWrapper(message.str(), std::function<std::string(Context)>{ description });
 }
