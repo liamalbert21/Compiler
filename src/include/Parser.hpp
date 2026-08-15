@@ -42,4 +42,14 @@ private:
     std::unique_ptr<Expr> m_ast{};
 };
 
-#undef   Tokens
+#undef Tokens
+
+#include "Error.hpp"
+
+template<>
+class Error<Parser> {
+public:
+    static void ExpectedExpression(Parser& parser, Expr::OperandSide side, const Token& target);
+    static void ExpectedOperator(Parser& parser);
+    static void ExpectedClosingGroup(Parser& parser, Token::Type type);
+};

@@ -1,5 +1,4 @@
 #include "Lexer.hpp"
-#include "Error.hpp"
 #include "Log.hpp"
 
 #include <fstream>
@@ -8,12 +7,6 @@
 #include <cassert>
 
 namespace fs = std::filesystem;
-
-template <>
-class Error<Lexer> {
-public:
-    static void InvalidCharacter(Lexer& lexer);
-};
 
 void Lexer::initConditionalMembers() {
     if (m_content.length()) {
@@ -246,19 +239,4 @@ void Lexer::ErrorWrapper(
 
     Log::instance().error(message.str());
     m_state = State::FAIL;
-}
-
-void Error<Lexer>::InvalidCharacter(Lexer& lexer) {
-    auto description{ [](Context data) -> std::string {
-        std::ostringstream oss{};
-
-        oss << std::get<std::string_view>(data.first) << '\n'
-            << std::setw(data.second + 1) << "^\n"
-            << std::setw(data.second + 1) << "|\n";
-
-        return oss.str();
-    }};
-
-    std::string message{ "Invalid character!" };
-    lexer.ErrorWrapper(message, std::function<std::string(Context)>{ description });
 }

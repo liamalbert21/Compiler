@@ -42,3 +42,11 @@ private:
     std::string m_content{};
     std::string::iterator m_start{}, m_current{};
 };
+
+#include "Error.hpp"
+
+template <>
+class Error<Lexer> {
+public:
+    static void InvalidCharacter(Lexer& lexer);
+};

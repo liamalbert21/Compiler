@@ -1,5 +1,4 @@
 #include "Parser.hpp"
-#include "Error.hpp"
 #include "Log.hpp"
 
 #include <cassert>
@@ -7,14 +6,6 @@
 #include <sstream>
 
 using TokenTypes = std::initializer_list<Token::Type>;
-
-template<>
-class Error<Parser> {
-public:
-    static void ExpectedExpression(Parser& parser, Expr::OperandSide side, const Token& target);
-    static void ExpectedOperator(Parser& parser);
-    static void ExpectedClosingGroup(Parser& parser, Token::Type type);
-};
 
 Parser::Parser(std::vector<Token> tokens) :
     m_state{ State::INIT }, m_tokens{ std::move(tokens) } {
@@ -52,13 +43,13 @@ std::optional<Token> Parser::matchTokens(TokenTypes types) {
         return std::nullopt;
     }
     
-    Token target{ extract() };
+    Token target{ peek() };
     const auto it{ std::find(types.begin(), types.end(), target.type) };
 
     if (it == types.end()) {
         return std::nullopt;
     }
-    // advance();
+    advance();
     return target;
 }
 
@@ -226,53 +217,3 @@ void Parser::ErrorWrapper(
     m_state = State::FAIL;
 }
 
-void Error<Parser>::ExpectedExpression(Parser& parser, Expr::OperandSide side, const Token& target) {
-    auto description{ [=](Context data) -> std::string {
-        std::ostringstream oss{};
-        auto start{ std::get<std::span<const Token>>(data.first).begin() };
-
-        oss << "* At token instance: "
-            << std::count_if(
-                    start,
-                    start + data.second + 1,
-                    [=](const Token& token) { return token.type == target.type; }
-                )
-            << '\n';
-
-        return oss.str();
-    }};
-
-    std::ostringstream message{};
-    message << "Expected expression "
-            << (
-                    side == Expr::OperandSide::LEFT  ? "before " : 
-                    side == Expr::OperandSide::RIGHT ? "after "  : "before/after "
-                )
-            << '\'' << target << '\'';
-
-    parser.ErrorWrapper(message.str(), std::function<std::string(Context)>{ description });
-}
-
-void Error<Parser>::ExpectedOperator(Parser& parser) {
-    auto description{ [](Context data) -> std::string {
-        std::ostringstream oss{};
-        oss << "* At token position: " << data.second + 1 << '\n';
-        return oss.str();
-    }};
-
-    std::string message{ "Expected operator!" };
-    parser.ErrorWrapper(message, std::function<std::string(Context)>{ description });
-}
-
-void Error<Parser>::ExpectedClosingGroup(Parser& parser, Token::Type type) {
-    auto description{ [](Context data) -> std::string {
-        std::ostringstream oss{};
-        oss << "* At token position: " << data.second + 1 << '\n';
-        return oss.str();
-    }};
-
-    std::ostringstream message{};
-    message << "Expected " << Token::ToString::Type(type) << '!';
-
-    parser.ErrorWrapper(message.str(), std::function<std::string(Context)>{ description });
-}
