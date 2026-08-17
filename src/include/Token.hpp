@@ -13,7 +13,7 @@ struct Token {
         INVALID,
 
         // Should be invisible to the user
-        __DIGIT, __SEPARATOR, __WHITESPACE,
+        DIGIT, SEPARATOR, WHITESPACE,
     };
 
     struct ToString {
@@ -22,6 +22,14 @@ struct Token {
 
     explicit operator bool() const;
     bool operator==(const Token& other) const;
+
+    /**
+     * @brief Prints the provided token's literal
+     *
+     * @param out             output stream (LHS)
+     * @param token           token input   (RHS)
+     * @return std::ostream&  reference to LHS    
+     */
     friend std::ostream& operator<<(std::ostream& out, const Token& token);
 
     Type type{};

@@ -35,11 +35,11 @@ std::string Token::ToString::Type(const Token::Type type) {
             return "factorial";
 
         // These strings should NEVER be displayed to the user
-        case __DIGIT:
+        case DIGIT:
             return "digit";
-        case __SEPARATOR:
+        case SEPARATOR:
             return "separator";
-        case __WHITESPACE:
+        case WHITESPACE:
             return "whitespace";
 
         // Invalid tokens
@@ -51,13 +51,6 @@ std::string Token::ToString::Type(const Token::Type type) {
     }
 }
 
-/**
- * @brief Prints the provided token's literal
- *
- * @param out             output stream (LHS)
- * @param token           token input   (RHS)
- * @return std::ostream&  reference to LHS    
- */
 std::ostream& operator<<(std::ostream& out, const Token& token) {
     switch (token.type) {
         case Token::Type::INT:

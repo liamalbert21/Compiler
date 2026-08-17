@@ -47,7 +47,7 @@ std::pair<std::vector<Token>, bool> Lexer::tokenize() {
     // "token" will be deemed false if its type is invalid
     while (Token&& token{ getToken() }) {
         // Ignore whitespace
-        if (token.type != Token::Type::__WHITESPACE) {
+        if (token.type != Token::Type::WHITESPACE) {
             tokens.push_back(token);
         }
         if (isEOF()) {
@@ -89,7 +89,7 @@ Token Lexer::getToken() {
     target.type = guessTokenType(first);
 
     // Handle numbers
-    if (target.type == Token::Type::__DIGIT || target.type == Token::Type::__SEPARATOR) {
+    if (target.type == Token::Type::DIGIT || target.type == Token::Type::SEPARATOR) {
         target = generateNumericToken(target.type);
     }
     else {
@@ -102,7 +102,7 @@ Token Lexer::getToken() {
 
 Token Lexer::generateNumericToken(Token::Type init_guess) {
     // Redirect the initial guess to a numeric type
-    Token::Type new_guess{ init_guess == Token::Type::__SEPARATOR ? Token::Type::DOUBLE : Token::Type::INT };
+    Token::Type new_guess{ init_guess == Token::Type::SEPARATOR ? Token::Type::DOUBLE : Token::Type::INT };
 
     const auto data{ getNumericTokenData(new_guess) };
     Literal literal{};
@@ -128,14 +128,14 @@ Lexer::Number Lexer::getNumericTokenData(Token::Type final_guess) {
     while (!isEOF()) {
         Token::Type partial_type{ guessTokenType(peek()) };
 
-        if (partial_type == Token::Type::__SEPARATOR) {
+        if (partial_type == Token::Type::SEPARATOR) {
             // A separator was already encountered in the target token
             if (type == Token::Type::DOUBLE) {
                 return { Token::Type::INVALID, "" };
             }
             type = Token::Type::DOUBLE;
         }
-        else if (partial_type != Token::Type::__DIGIT) {
+        else if (partial_type != Token::Type::DIGIT) {
             break;
         }
 
@@ -151,7 +151,7 @@ Token::Type Lexer::guessTokenType(char ch) const {
     switch (ch) {
         // Double specifier
         case '.':
-            return __SEPARATOR;
+            return SEPARATOR;
 
         // Grouping
         case '(':
@@ -178,16 +178,16 @@ Token::Type Lexer::guessTokenType(char ch) const {
         // Whitespace (will eventually ignore) \n and \r may later be changed if
         // I support multiple lines
         case ' ':
-            return __WHITESPACE;
+            return WHITESPACE;
         case '\n':
-            return __WHITESPACE;
+            return WHITESPACE;
         case '\r':
-            return __WHITESPACE;
+            return WHITESPACE;
 
         // Numbers
         default:
             if (std::isdigit(ch)) {
-                return __DIGIT;
+                return DIGIT;
             }
     }
 

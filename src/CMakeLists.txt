@@ -22,4 +22,4 @@ add_executable(${PROJECT_NAME} main.cpp)
 add_subdirectory(errors)
 add_subdirectory(tests)
 
-target_link_libraries(${PROJECT_NAME} PRIVATE ${COMPILER_CORE} Errors)
+target_link_libraries(${PROJECT_NAME} PRIVATE CompilerCore Errors)
