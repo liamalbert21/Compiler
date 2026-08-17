@@ -1,31 +1,25 @@
-add_executable(${PROJECT_NAME}
+set(COMPILER_CORE "CompilerCore")
+
+add_library(${COMPILER_CORE} STATIC
     Expression.cpp
     Lexer.cpp
     Log.cpp
-    main.cpp
     Parser.cpp
     Token.cpp
 )
 
-set_target_properties(${PROJECT_NAME} PROPERTIES
-    COMPILE_WARNING_AS_ERROR ON
-    RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+target_compile_definitions(${COMPILER_CORE} PUBLIC
+    PROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/"
 )
 
-# Eventual GUI shouldn't need access to 
-add_library(PrimaryInterface INTERFACE)
-target_include_directories(PrimaryInterface INTERFACE
-    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/src/include>
+target_include_directories(${COMPILER_CORE} PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
     $<INSTALL_INTERFACE:src/include>
 )
 
+add_executable(${PROJECT_NAME} main.cpp)
+
 add_subdirectory(errors)
+add_subdirectory(tests)
 
-target_link_libraries(${PROJECT_NAME} PUBLIC
-    PrimaryInterface
-    ErrorImpl
-)
-
-target_compile_definitions(${PROJECT_NAME} PRIVATE
-    PROJECT_ROOT_DIR="${CMAKE_CURRENT_SOURCE_DIR}/"
-)
+target_link_libraries(${PROJECT_NAME} PRIVATE ${COMPILER_CORE} Errors)

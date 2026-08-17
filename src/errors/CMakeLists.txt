@@ -1,8 +1,8 @@
-set(LIB_TARGET_NAME "ErrorImpl")
+set(ERRORS "Errors")
 
-add_library(${LIB_TARGET_NAME} STATIC
+add_library(${ERRORS} STATIC
     Error_Lexer.cpp
     Error_Parser.cpp
 )
 
-target_link_libraries(${LIB_TARGET_NAME} PRIVATE PrimaryInterface)
+target_link_libraries(${ERRORS} PRIVATE CompilerCore)
