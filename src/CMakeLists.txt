@@ -17,9 +17,10 @@ target_include_directories(${COMPILER_CORE} PUBLIC
     $<INSTALL_INTERFACE:src/include>
 )
 
+add_subdirectory(errors)
+target_link_libraries(${COMPILER_CORE} Errors)
+
 add_executable(${PROJECT_NAME} main.cpp)
 
-add_subdirectory(errors)
 add_subdirectory(tests)
-
-target_link_libraries(${PROJECT_NAME} PRIVATE CompilerCore Errors)
+target_link_libraries(${PROJECT_NAME} PRIVATE CompilerCore)

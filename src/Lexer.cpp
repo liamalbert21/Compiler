@@ -13,6 +13,9 @@ void Lexer::initConditionalMembers() {
         m_start = m_content.begin();
         m_current = m_content.begin();
     }
+    else {
+        m_state = State::FAIL;
+    }
 }
 
 /**
@@ -42,6 +45,9 @@ Lexer::Lexer(const fs::path& input) :
     }
 
 std::pair<std::vector<Token>, bool> Lexer::tokenize() {
+    if (m_state == State::FAIL) {
+        return { {}, false };
+    }
     std::vector<Token> tokens;
 
     // "token" will be deemed false if its type is invalid
