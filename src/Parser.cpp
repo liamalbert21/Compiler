@@ -12,9 +12,16 @@ Parser::Parser(std::vector<Token> tokens) :
         if (m_tokens.size()) {
             m_current = m_tokens.begin();
         }
+        else {
+            m_state = State::FAIL;
+        }
     }
 
 bool Parser::generateAST() {
+    if (m_state == State::FAIL) {
+        return false;
+    }
+
     // Assume "expression" will produce a valid AST
     m_state = State::OKAY;
     m_ast = expression();

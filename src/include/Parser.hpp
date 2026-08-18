@@ -12,7 +12,10 @@ public:
     bool generateAST();
     void printAST() const;
 
-    void ErrorWrapper(std::string_view start, std::function<std::string(Context)> func) override;
+    void ErrorWrapper(
+        std::string_view start,
+        std::function<std::string(Context)> func
+    ) override;
 
 private:
     std::optional<Token> matchTokens(std::initializer_list<Token::Type> types);

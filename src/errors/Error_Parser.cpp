@@ -1,6 +1,13 @@
 #include "Parser.hpp"
 
+#include <algorithm>
 #include <sstream>
+
+std::string genericPositionalDescription(const Context& data) {
+    std::ostringstream oss{};
+    oss << "* At token position: " << data.second + 1 << '\n';
+    return oss.str();
+}
 
 void Error<Parser>::ExpectedExpression(Parser& parser, Expr::OperandSide side, const Token& target) {
     auto description{ [=](Context data) -> std::string {
@@ -11,7 +18,7 @@ void Error<Parser>::ExpectedExpression(Parser& parser, Expr::OperandSide side, c
             << std::count_if(
                     start,
                     start + data.second + 1,
-                    [=](const Token& token) { return token.type == target.type; }
+                    [&](const Token& token) { return token.type == target.type; }
                 )
             << '\n';
 
@@ -30,25 +37,12 @@ void Error<Parser>::ExpectedExpression(Parser& parser, Expr::OperandSide side, c
 }
 
 void Error<Parser>::ExpectedOperator(Parser& parser) {
-    auto description{ [](Context data) -> std::string {
-        std::ostringstream oss{};
-        oss << "* At token position: " << data.second + 1 << '\n';
-        return oss.str();
-    }};
-
     std::string message{ "Expected operator!" };
-    parser.ErrorWrapper(message, std::function<std::string(Context)>{ description });
+    parser.ErrorWrapper(message, std::function<std::string(const Context&)>{ genericPositionalDescription });
 }
 
 void Error<Parser>::ExpectedClosingGroup(Parser& parser, Token::Type type) {
-    auto description{ [](Context data) -> std::string {
-        std::ostringstream oss{};
-        oss << "* At token position: " << data.second + 1 << '\n';
-        return oss.str();
-    }};
-
     std::ostringstream message{};
     message << "Expected " << Token::ToString::Type(type) << '!';
-
-    parser.ErrorWrapper(message.str(), std::function<std::string(Context)>{ description });
+    parser.ErrorWrapper(message.str(), std::function<std::string(const Context&)>{ genericPositionalDescription });
 }

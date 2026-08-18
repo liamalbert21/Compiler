@@ -6,7 +6,7 @@
 // Input configuration
 #define FILE_INPUT          0
 #define MANUAL_INPUT        1
-#define MANUAL_INPUT_STR    "This input will fail :)"
+#define MANUAL_INPUT_STR    "1 2"
 #define INPUT_METHOD        FILE_INPUT
 
 int main() {

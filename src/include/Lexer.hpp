@@ -14,7 +14,10 @@ public:
     bool tokenize(std::vector<Token>& tokens);
     void printTokens(const std::vector<Token>& tokens, std::size_t right_just) const;
 
-    void ErrorWrapper(std::string_view start, std::function<std::string(Context)> func) override;
+    void ErrorWrapper(
+        std::string_view start,
+        std::function<std::string(Context)> func
+    ) override;
 
 private:
     struct Number {

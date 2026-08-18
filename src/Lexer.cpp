@@ -19,12 +19,12 @@ void Lexer::initConditionalMembers() {
 }
 
 /**
- * @brief Construct a new Lexer:: Lexer object
+ * @brief Construct a new Lexer object
  *
  * @note  Moving content during member initialization permits both move and copy
  *        construction with one string overload and optimized efficientcy.
  *        Either pass an rvalue and invoke the move constructor for content or
- *        pass an lvalue and perform copy construction on content.
+ *        pass an lvalue and copy construct content.
  *
  *        In either case, m_content is initialized via move construction. 
  *

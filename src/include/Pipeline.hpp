@@ -1,7 +1,7 @@
 #pragma once
 
-#include <functional>
 #include <string_view>
+#include <functional>
 #include <span>
 
 struct Token;

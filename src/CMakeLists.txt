@@ -18,7 +18,7 @@ target_include_directories(${COMPILER_CORE} PUBLIC
 )
 
 add_subdirectory(errors)
-target_link_libraries(${COMPILER_CORE} Errors)
+target_link_libraries(${COMPILER_CORE} PUBLIC Errors)
 
 add_executable(${PROJECT_NAME} main.cpp)
 
